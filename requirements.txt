@@ -1,0 +1,7 @@
+google-ads
+openai
+python-dotenv
+schedule
+streamlit
+pandas
+plotly 
