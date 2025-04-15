@@ -645,161 +645,220 @@ def stop_scheduler():
 
 # Function to render campaigns data as a table and charts
 def render_campaign_data(campaigns, keywords=None):
+    """Render campaign performance data with charts and metrics."""
     if not campaigns:
-        st.info("No campaign data available. Use the sidebar to fetch campaign data.")
+        st.warning("No campaign data available. Please fetch data first.")
         return
+    
+    # Create a DataFrame for easier manipulation
+    df_campaigns = pd.DataFrame(campaigns)
+    
+    # Key metrics section
+    st.subheader("Key Campaign Metrics")
+    
+    # Calculate overall metrics
+    total_cost = df_campaigns['cost'].sum()
+    total_conversions = df_campaigns['conversions'].sum()
+    total_clicks = df_campaigns['clicks'].sum()
+    overall_ctr = (total_clicks / df_campaigns['impressions'].sum() * 100) if df_campaigns['impressions'].sum() > 0 else 0
+    overall_conversion_rate = (total_conversions / total_clicks * 100) if total_clicks > 0 else 0
+    overall_cpc = total_cost / total_clicks if total_clicks > 0 else 0
+    overall_cpa = total_cost / total_conversions if total_conversions > 0 else 0
+    
+    # Display metrics in columns
+    cols = st.columns(4)
+    cols[0].metric("Total Spend", f"${total_cost:.2f}")
+    cols[1].metric("Total Conversions", f"{total_conversions:.1f}")
+    cols[2].metric("Conversion Rate", f"{overall_conversion_rate:.2f}%")
+    cols[3].metric("Cost Per Conversion", f"${overall_cpa:.2f}" if total_conversions > 0 else "N/A")
+    
+    cols = st.columns(4)
+    cols[0].metric("Total Clicks", f"{total_clicks:,}")
+    cols[1].metric("CTR", f"{overall_ctr:.2f}%")
+    cols[2].metric("Average CPC", f"${overall_cpc:.2f}" if total_clicks > 0 else "N/A")
+    cols[3].metric("Campaigns", f"{len(campaigns)}")
+    
+    # Charts section
+    st.subheader("Campaign Performance")
+    
+    # Create tab layout for different visualizations
+    chart_tabs = st.tabs(["Cost & Conversions", "Click Performance", "Campaign Table"])
+    
+    with chart_tabs[0]:
+        # Prepare data for chart - top 10 campaigns by spend
+        top_campaigns = df_campaigns.sort_values('cost', ascending=False).head(10)
         
-    # Convert to DataFrame for easier manipulation
-    df = pd.DataFrame(campaigns)
-    
-    # Display summary metrics
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        st.metric("Total Campaigns", len(df))
-    with col2:
-        st.metric("Total Clicks", int(df['clicks'].sum()))
-    with col3:
-        st.metric("Total Conversions", round(df['conversions'].sum(), 2))
-    with col4:
-        st.metric("Total Cost", f"${round(df['cost'].sum(), 2)}")
-    
-    # Display data table
-    st.subheader("Campaign Performance Data")
-    
-    # Format the dataframe for display
-    display_df = df.copy()
-    display_df['ctr'] = display_df['ctr'].apply(lambda x: f"{x:.2f}%")
-    display_df['conversion_rate'] = display_df['conversion_rate'].apply(lambda x: f"{x:.2f}%")
-    display_df['average_cpc'] = display_df['average_cpc'].apply(lambda x: f"${x:.2f}")
-    display_df['cost'] = display_df['cost'].apply(lambda x: f"${x:.2f}")
-    display_df['cost_per_conversion'] = display_df['cost_per_conversion'].apply(lambda x: f"${x:.2f}")
-    
-    st.dataframe(display_df)
-    
-    # Create charts
-    st.subheader("Campaign Performance Visualization")
-    
-    tab1, tab2, tab3 = st.tabs(["Clicks & Conversions", "CTR & Conversion Rate", "Cost Metrics"])
-    
-    with tab1:
-        # Create a bar chart for clicks and conversions
-        fig = px.bar(
-            df.sort_values('clicks', ascending=False).head(10),
-            x='name',
-            y=['clicks', 'conversions'],
-            barmode='group',
-            title='Top 10 Campaigns by Clicks',
-            labels={'name': 'Campaign', 'value': 'Count', 'variable': 'Metric'}
-        )
-        st.plotly_chart(fig, use_container_width=True)
+        # Create a combo chart with cost and conversions
+        fig = go.Figure()
         
-    with tab2:
-        # Create a scatter plot for CTR vs. Conversion Rate
-        fig = px.scatter(
-            df,
-            x='ctr',
-            y='conversion_rate',
-            size='impressions',
-            color='cost',
-            hover_name='name',
-            title='CTR vs. Conversion Rate',
-            labels={
-                'ctr': 'Click-Through Rate (%)', 
-                'conversion_rate': 'Conversion Rate (%)',
-                'impressions': 'Impressions',
-                'cost': 'Cost ($)'
-            }
-        )
-        st.plotly_chart(fig, use_container_width=True)
-        
-    with tab3:
-        # Create a bar chart for cost metrics
-        fig = px.bar(
-            df.sort_values('cost', ascending=False).head(10),
-            x='name',
-            y=['cost', 'cost_per_conversion'],
-            barmode='group',
-            title='Top 10 Campaigns by Cost',
-            labels={'name': 'Campaign', 'value': 'Amount ($)', 'variable': 'Metric'}
-        )
-        st.plotly_chart(fig, use_container_width=True)
-    
-    # Display keyword data if available
-    if keywords and len(keywords) > 0:
-        st.subheader("Keyword Performance Data")
-        
-        # Convert to DataFrame
-        kw_df = pd.DataFrame(keywords)
-        
-        # Summary metrics
-        col1, col2, col3, col4 = st.columns(4)
-        with col1:
-            st.metric("Total Keywords", len(kw_df))
-        with col2:
-            st.metric("Keywords With Clicks", len(kw_df[kw_df['clicks'] > 0]))
-        with col3:
-            st.metric("Keywords With Conversions", len(kw_df[kw_df['conversions'] > 0]))
-        with col4:
-            avg_quality = kw_df['quality_score'].mean() if 'quality_score' in kw_df and not kw_df['quality_score'].isna().all() else 0
-            st.metric("Average Quality Score", f"{avg_quality:.1f}")
-        
-        # Format the dataframe for display
-        display_kw_df = kw_df.copy()
-        if 'ctr' in display_kw_df:
-            display_kw_df['ctr'] = display_kw_df['ctr'].apply(lambda x: f"{x:.2f}%" if pd.notnull(x) else "0.00%")
-        if 'average_cpc' in display_kw_df:
-            display_kw_df['average_cpc'] = display_kw_df['average_cpc'].apply(lambda x: f"${x:.2f}" if pd.notnull(x) else "$0.00")
-        if 'cost' in display_kw_df:
-            display_kw_df['cost'] = display_kw_df['cost'].apply(lambda x: f"${x:.2f}" if pd.notnull(x) else "$0.00")
-        if 'cost_per_conversion' in display_kw_df:
-            display_kw_df['cost_per_conversion'] = display_kw_df['cost_per_conversion'].apply(
-                lambda x: f"${x:.2f}" if pd.notnull(x) and x > 0 else "-"
+        # Add cost bars
+        fig.add_trace(
+            go.Bar(
+                x=top_campaigns['name'],
+                y=top_campaigns['cost'],
+                name='Cost ($)',
+                marker_color='#4285F4'
             )
-        if 'current_bid' in display_kw_df:
-            display_kw_df['current_bid'] = display_kw_df['current_bid'].apply(lambda x: f"${x:.2f}" if pd.notnull(x) else "-")
+        )
         
-        # Display keyword table
-        st.dataframe(display_kw_df)
+        # Add conversion line
+        fig.add_trace(
+            go.Scatter(
+                x=top_campaigns['name'],
+                y=top_campaigns['conversions'],
+                name='Conversions',
+                marker_color='#34A853',
+                mode='lines+markers',
+                yaxis='y2'
+            )
+        )
         
-        # Create keyword charts
-        st.subheader("Keyword Performance Visualization")
+        # Set up the layout with two y-axes
+        fig.update_layout(
+            title='Top 10 Campaigns by Spend',
+            xaxis_title='Campaign',
+            yaxis_title='Cost ($)',
+            yaxis2=dict(
+                title='Conversions',
+                overlaying='y',
+                side='right'
+            ),
+            barmode='group',
+            height=500,
+            legend=dict(
+                orientation="h",
+                yanchor="bottom",
+                y=1.02,
+                xanchor="right",
+                x=1
+            )
+        )
         
-        tab1, tab2 = st.tabs(["Top Keywords by Clicks", "Keyword Quality Analysis"])
+        # Display the figure
+        st.plotly_chart(fig, use_container_width=True)
+    
+    with chart_tabs[1]:
+        # Create a scatter plot of CTR vs CPC with bubble size as clicks
+        fig = px.scatter(
+            df_campaigns,
+            x='ctr',
+            y='average_cpc',
+            size='clicks',
+            color='conversions',
+            hover_name='name',
+            size_max=60,
+            labels={
+                'ctr': 'CTR (%)',
+                'average_cpc': 'Average CPC ($)',
+                'clicks': 'Clicks',
+                'conversions': 'Conversions'
+            },
+            title='CTR vs CPC (bubble size = clicks, color = conversions)'
+        )
         
-        with tab1:
-            # Top keywords by clicks
-            if len(kw_df) > 0 and 'clicks' in kw_df:
-                top_keywords = kw_df.sort_values('clicks', ascending=False).head(20)
+        fig.update_layout(height=500)
+        st.plotly_chart(fig, use_container_width=True)
+    
+    with chart_tabs[2]:
+        # Display the campaign data as a sortable table
+        st.dataframe(
+            df_campaigns[[
+                'name', 'status', 'clicks', 'impressions', 'ctr', 'average_cpc',
+                'cost', 'conversions', 'conversion_rate', 'cost_per_conversion'
+            ]].sort_values('cost', ascending=False),
+            use_container_width=True,
+            hide_index=True
+        )
+    
+    # Show keyword data if available
+    if keywords:
+        st.subheader("Keyword Performance")
+        
+        # Create a DataFrame for keywords
+        df_keywords = pd.DataFrame(keywords)
+        
+        # Display key metrics for keywords
+        kw_cost = df_keywords['cost'].sum()
+        kw_conversions = df_keywords['conversions'].sum()
+        kw_clicks = df_keywords['clicks'].sum()
+        kw_ctr = (kw_clicks / df_keywords['impressions'].sum() * 100) if df_keywords['impressions'].sum() > 0 else 0
+        kw_conversion_rate = (kw_conversions / kw_clicks * 100) if kw_clicks > 0 else 0
+        
+        cols = st.columns(4)
+        cols[0].metric("Keyword Spend", f"${kw_cost:.2f}")
+        cols[1].metric("Keyword Conversions", f"{kw_conversions:.1f}")
+        cols[2].metric("Keyword Conversion Rate", f"{kw_conversion_rate:.2f}%")
+        cols[3].metric("Total Keywords", f"{len(keywords):,}")
+        
+        # Create tabs for keyword visualizations
+        kw_tabs = st.tabs(["Top Keywords", "Keyword Table", "Quality Score Distribution"])
+        
+        with kw_tabs[0]:
+            # Top 10 keywords by conversions
+            top_keywords = df_keywords.sort_values('conversions', ascending=False).head(10)
+            
+            if not top_keywords.empty:
                 fig = px.bar(
                     top_keywords,
                     x='keyword_text',
-                    y='clicks',
-                    color='conversions',
-                    title='Top 20 Keywords by Clicks',
+                    y=['cost', 'conversions'],
+                    barmode='group',
                     labels={
                         'keyword_text': 'Keyword',
-                        'clicks': 'Clicks',
-                        'conversions': 'Conversions'
-                    }
+                        'cost': 'Cost ($)',
+                        'conversions': 'Conversions',
+                        'variable': 'Metric'
+                    },
+                    title='Top 10 Keywords by Conversions',
+                    color_discrete_sequence=['#4285F4', '#34A853']
                 )
+                fig.update_layout(height=500)
                 st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.write("No conversion data available for keywords")
         
-        with tab2:
-            # Quality score analysis
-            if len(kw_df) > 0 and 'quality_score' in kw_df and not kw_df['quality_score'].isna().all():
-                # Count keywords by quality score
-                quality_counts = kw_df['quality_score'].value_counts().sort_index()
+        with kw_tabs[1]:
+            # Display the keyword data as a sortable table
+            if not df_keywords.empty:
+                # Ensure all required columns exist
+                required_cols = ['keyword_text', 'match_type', 'clicks', 'impressions', 'ctr', 
+                                'average_cpc', 'cost', 'conversions', 'conversion_rate', 
+                                'cost_per_conversion', 'quality_score']
+                
+                # Filter to columns that exist in the dataframe
+                display_cols = [col for col in required_cols if col in df_keywords.columns]
+                
+                st.dataframe(
+                    df_keywords[display_cols].sort_values('cost', ascending=False),
+                    use_container_width=True,
+                    hide_index=True
+                )
+            else:
+                st.write("No keyword data available")
+        
+        with kw_tabs[2]:
+            # Quality score distribution
+            if 'quality_score' in df_keywords.columns:
+                quality_counts = df_keywords['quality_score'].value_counts().sort_index()
                 
                 fig = px.bar(
                     x=quality_counts.index,
                     y=quality_counts.values,
-                    title='Keyword Distribution by Quality Score',
-                    labels={
-                        'x': 'Quality Score',
-                        'y': 'Number of Keywords'
-                    }
+                    labels={'x': 'Quality Score', 'y': 'Number of Keywords'},
+                    title='Keyword Quality Score Distribution',
+                    color=quality_counts.index,
+                    color_continuous_scale='RdYlGn'  # Red to Yellow to Green
                 )
+                fig.update_layout(height=400)
                 st.plotly_chart(fig, use_container_width=True)
+                
+                # Average quality score
+                avg_qs = df_keywords['quality_score'].mean()
+                st.metric("Average Quality Score", f"{avg_qs:.1f} / 10")
+            else:
+                st.write("Quality score data not available")
+    else:
+        st.info("Keyword data not available. Fetch keyword data to see detailed keyword performance.")
 
 # Function to render chat interface
 def render_chat_interface():
@@ -931,245 +990,230 @@ def render_logs():
 # Function to show an editable suggestion
 def render_editable_suggestion(suggestion, index):
     """
-    Render a single optimization suggestion with editing capabilities.
+    Render an editable UI for a single optimization suggestion.
     
     Args:
         suggestion (dict): The suggestion to render
-        index (int): The index of the suggestion
+        index (int): Index of the suggestion in the list
     """
+    # Make a copy of the suggestion to track changes
+    if str(index) not in st.session_state.edit_suggestions:
+        st.session_state.edit_suggestions[str(index)] = copy.deepcopy(suggestion)
+    
+    edited_suggestion = st.session_state.edit_suggestions[str(index)]
+    
     # Determine card style based on status
     card_class = "suggestion-card"
-    if suggestion.get('status') == 'applied':
+    if edited_suggestion.get('applied', False):
         card_class += " suggestion-card-applied"
-    elif suggestion.get('status') == 'failed':
+    elif edited_suggestion.get('status') == 'failed':
         card_class += " suggestion-card-failed"
     else:
         card_class += " suggestion-card-pending"
     
-    # Start the card
-    st.markdown(f"<div class='{card_class}'>", unsafe_allow_html=True)
+    # Render suggestion card
+    st.markdown(f"""<div class="{card_class}">""", unsafe_allow_html=True)
     
-    # Header with action badge
-    action_type = suggestion.get('action_type', 'OTHER')
-    col1, col2 = st.columns([10, 2])
+    # Display suggestion header
+    action_type = edited_suggestion.get('action_type', 'UNKNOWN')
+    title = edited_suggestion.get('title', 'Untitled Suggestion')
+    
+    # Create columns for the header
+    header_col1, header_col2 = st.columns([4, 1])
+    
+    with header_col1:
+        st.markdown(f"### {index+1}. {title}")
+        st.markdown(f"*Action Type: {action_type}*")
+    
+    with header_col2:
+        # Display status or apply button
+        if edited_suggestion.get('applied', False):
+            st.success("Applied ✓")
+        elif edited_suggestion.get('status') == 'failed':
+            st.error("Failed ✗")
+        else:
+            if st.button(f"Apply #{index+1}", key=f"apply_button_{index}"):
+                apply_result = apply_optimization(edited_suggestion)
+                st.rerun()
+    
+    # Display suggestion details
+    entity_type = edited_suggestion.get('entity_type', 'unknown')
+    entity_id = edited_suggestion.get('entity_id', 'unknown')
+    
+    st.markdown(f"**Entity**: {entity_type.upper()} - {entity_id}")
+    
+    # Create columns for editable fields
+    col1, col2 = st.columns(2)
+    
     with col1:
-        st.subheader(f"{index+1}. {suggestion.get('title', 'Suggestion')}")
-    with col2:
-        st.info(action_type)
-    
-    # Entity information
-    entity_type = suggestion.get('entity_type', '').title()
-    entity_id = suggestion.get('entity_id', 'Unknown')
-    st.write(f"**Target**: {entity_type} - {entity_id}")
-    
-    # Original change and rationale
-    with st.expander("Details", expanded=False):
-        st.write("**Suggested Change**:")
-        st.write(suggestion.get('change', 'No specific change provided'))
-        st.write("**Rationale**:")
-        st.write(suggestion.get('rationale', 'No rationale provided'))
-    
-    # Editable fields based on action type
-    st.write("**Edit Suggestion**:")
-    
-    suggestion_id = str(suggestion.get('index', index))
-    
-    # Initialize the edit state for this suggestion if not exists
-    if suggestion_id not in st.session_state.edit_suggestions:
-        st.session_state.edit_suggestions[suggestion_id] = {}
-    
-    # Create editable fields based on action type
-    if action_type == 'BID_ADJUSTMENT':
-        # Display current bid if available
-        if 'current_value' in suggestion:
-            st.write(f"Current Bid: ${suggestion['current_value']:.2f}")
-        
-        # Calculate appropriate initial value and min value to prevent StreamlitValueBelowMinError
-        initial_value = 0.01  # Default minimum
-        
-        if 'edited_value' in suggestion and suggestion['edited_value'] > 0:
-            initial_value = suggestion['edited_value']
-        elif 'change_value' in suggestion and suggestion['change_value'].get('type') == 'absolute':
-            value = suggestion['change_value'].get('value', 0.0)
-            initial_value = max(0.01, value)
-        elif 'current_value' in suggestion:
-            # Apply percentage change if specified
-            if 'change_value' in suggestion:
-                change_type = suggestion['change_value'].get('type')
-                change_value = suggestion['change_value'].get('value', 0.0)
-                
-                current = suggestion['current_value']
-                
-                if change_type == 'percentage_increase':
-                    initial_value = current * (1 + change_value/100)
-                elif change_type == 'percentage_decrease':
-                    initial_value = current * (1 - change_value/100)
-                    # Ensure minimum value
-                    initial_value = max(0.01, initial_value)
-                else:
-                    initial_value = current
-            else:
-                initial_value = suggestion['current_value']
-        
-        # Round to 2 decimal places for display
-        initial_value = round(initial_value, 2)
-        
-        # Ensure minimum value is respected
-        initial_value = max(0.01, initial_value)
-        
-        new_bid = st.number_input(
-            "New Bid ($):",
-            min_value=0.01,
-            max_value=1000.0,
-            value=float(initial_value),
-            step=0.01,
-            key=f"bid_{suggestion_id}",
-            help="Enter the new bid amount in dollars"
-        )
-        
-        st.session_state.edit_suggestions[suggestion_id]['edited_value'] = new_bid
-        
-    elif action_type == 'STATUS_CHANGE':
-        # Display current status if available
-        if 'current_value' in suggestion:
-            st.write(f"Current Status: {suggestion['current_value']}")
-        
-        # Determine initial status value
-        initial_status = "ENABLED"
-        if 'edited_value' in suggestion:
-            initial_status = suggestion['edited_value']
-        elif 'change_value' in suggestion and suggestion['change_value'].get('type') == 'status':
-            initial_status = suggestion['change_value'].get('value', 'ENABLED')
-        elif 'change' in suggestion:
-            # Try to extract from change text
-            change_text = suggestion['change'].lower()
-            if 'pause' in change_text:
-                initial_status = "PAUSED"
-            elif 'remove' in change_text:
-                initial_status = "REMOVED"
-        
-        new_status = st.selectbox(
-            "New Status:",
-            options=["ENABLED", "PAUSED", "REMOVED"],
-            index=["ENABLED", "PAUSED", "REMOVED"].index(initial_status),
-            key=f"status_{suggestion_id}",
-            help="Select the new status for this entity"
-        )
-        
-        st.session_state.edit_suggestions[suggestion_id]['edited_value'] = new_status
-        
-    elif action_type == 'BUDGET_ADJUSTMENT':
-        # Display current budget if available
-        if 'current_value' in suggestion:
-            st.write(f"Current Budget: ${suggestion['current_value']:.2f}")
-        
-        # Calculate appropriate initial value and min value to prevent StreamlitValueBelowMinError
-        initial_value = 1.0  # Default minimum for budget
-        
-        if 'edited_value' in suggestion and suggestion['edited_value'] > 0:
-            initial_value = suggestion['edited_value']
-        elif 'change_value' in suggestion and suggestion['change_value'].get('type') == 'absolute':
-            value = suggestion['change_value'].get('value', 0.0)
-            initial_value = max(1.0, value)
-        elif 'current_value' in suggestion:
-            # Apply percentage change if specified
-            if 'change_value' in suggestion:
-                change_type = suggestion['change_value'].get('type')
-                change_value = suggestion['change_value'].get('value', 0.0)
-                
-                current = suggestion['current_value']
-                
-                if change_type == 'percentage_increase':
-                    initial_value = current * (1 + change_value/100)
-                elif change_type == 'percentage_decrease':
-                    initial_value = current * (1 - change_value/100)
-                    # Ensure minimum value
-                    initial_value = max(1.0, initial_value)
-                else:
-                    initial_value = current
-            else:
-                initial_value = suggestion['current_value']
-        
-        # Round to 2 decimal places for display
-        initial_value = round(initial_value, 2)
-        
-        # Ensure minimum value is respected
-        initial_value = max(1.0, initial_value)
-        
-        new_budget = st.number_input(
-            "New Budget ($):",
-            min_value=1.0,  # Minimum budget is $1
-            max_value=10000.0,
-            value=float(initial_value),
-            step=1.0,
-            key=f"budget_{suggestion_id}",
-            help="Enter the new budget amount in dollars"
-        )
-        
-        st.session_state.edit_suggestions[suggestion_id]['edited_value'] = new_budget
-    
-    elif action_type in ['MATCH_TYPE_CHANGE', 'QUALITY_IMPROVEMENT', 'NEGATIVE_KEYWORD', 'CAMPAIGN_SETTINGS']:
-        # For these action types, we don't need numeric inputs but might need other inputs
-        if action_type == 'MATCH_TYPE_CHANGE':
-            new_match_type = st.selectbox(
-                "New Match Type:",
-                options=["EXACT", "PHRASE", "BROAD"],
-                key=f"match_type_{suggestion_id}",
-                help="Select the new match type for this keyword"
-            )
-            st.session_state.edit_suggestions[suggestion_id]['edited_value'] = new_match_type
+        # Render appropriate editor based on action type
+        if action_type == 'BID_ADJUSTMENT':
+            st.markdown("#### Bid Adjustment")
             
-        elif action_type == 'NEGATIVE_KEYWORD':
-            # Show the suggested negative keyword
-            if 'entity_id' in suggestion:
-                st.write(f"Suggested Negative Keyword: {suggestion['entity_id']}")
-            # Allow editing if needed
-            edited_keyword = st.text_input(
-                "Edit Negative Keyword:",
-                value=suggestion.get('entity_id', ''),
-                key=f"neg_kw_{suggestion_id}",
-                help="Edit the negative keyword if needed"
-            )
-            st.session_state.edit_suggestions[suggestion_id]['edited_value'] = edited_keyword
-    
-    # Apply button and status
-    col1, col2 = st.columns([3, 1])
-    
-    # Show apply button if not already applied
-    if not suggestion.get('applied', False):
-        with col1:
-            if st.button("Apply This Change", key=f"apply_{suggestion_id}"):
-                # Update suggestion with edited values
-                for key, value in st.session_state.edit_suggestions.get(suggestion_id, {}).items():
-                    suggestion[key] = value
+            # Get current bid value with fallback to 0
+            current_bid = edited_suggestion.get('current_value', 0)
+            if current_bid is None:
+                current_bid = 0
                 
-                # Apply the optimization
-                success, message = apply_optimization(suggestion)
-                
-                # Update suggestion status
-                suggestion['applied'] = success
-                suggestion['status'] = 'applied' if success else 'failed'
-                suggestion['result_message'] = message
-                
-                if success:
-                    st.success(f"Successfully applied: {message}")
-                else:
-                    st.error(f"Failed to apply: {message}")
-    
-    # Show status in the right column
-    with col2:
-        if suggestion.get('applied', False):
-            if suggestion.get('status') == 'applied':
-                st.success("Applied ✓")
+            # Show current bid (read-only)
+            st.text_input("Current Bid", value=f"${current_bid:.2f}", disabled=True, key=f"current_bid_{index}")
+            
+            # Create a min_value that is less than the current bid to avoid errors
+            min_value = 0.01  # Default minimum
+            
+            # Calculate new bid based on percentage or absolute change
+            change_value = edited_suggestion.get('change_value', {})
+            change_type = change_value.get('type') if change_value else None
+            
+            if change_type == 'percentage_increase':
+                percentage = change_value.get('value', 10)
+                new_bid = current_bid * (1 + percentage/100)
+                bid_note = f"Increase by {percentage}%"
+            elif change_type == 'percentage_decrease':
+                percentage = change_value.get('value', 10)
+                new_bid = current_bid * (1 - percentage/100)
+                bid_note = f"Decrease by {percentage}%"
+            elif change_type == 'absolute':
+                new_bid = change_value.get('value', current_bid)
+                bid_note = f"Set to specific value"
             else:
-                st.error("Failed ✗")
+                new_bid = current_bid * 1.1  # Default 10% increase
+                bid_note = "Default 10% increase"
+            
+            # Allow editing the new bid with safe min_value
+            edited_bid = st.number_input(
+                "New Bid",
+                min_value=min_value,
+                value=float(new_bid),
+                step=0.01,
+                format="%.2f",
+                help="Enter the new bid amount",
+                key=f"new_bid_{index}"
+            )
+            
+            # Store the edited value
+            if 'change_value' not in edited_suggestion:
+                edited_suggestion['change_value'] = {}
+            
+            edited_suggestion['change_value']['value'] = edited_bid
+            if change_type:
+                edited_suggestion['change_value']['type'] = 'absolute'  # Change to absolute after editing
+            
+            # Show percentage change from original
+            if current_bid > 0:
+                pct_change = ((edited_bid / current_bid) - 1) * 100
+                st.markdown(f"*{pct_change:+.1f}% from original bid*")
+            
+        elif action_type == 'BUDGET_ADJUSTMENT':
+            st.markdown("#### Budget Adjustment")
+            
+            # Get current budget value with fallback to 0
+            current_budget = edited_suggestion.get('current_value', 0)
+            if current_budget is None:
+                current_budget = 0
+                
+            # Show current budget (read-only)
+            st.text_input("Current Budget", value=f"${current_budget:.2f}", disabled=True, key=f"current_budget_{index}")
+            
+            # Create a min_value that is less than the current budget to avoid errors
+            min_value = 0.01  # Default minimum
+            
+            # Calculate new budget based on percentage or absolute change
+            change_value = edited_suggestion.get('change_value', {})
+            change_type = change_value.get('type') if change_value else None
+            
+            if change_type == 'percentage_increase':
+                percentage = change_value.get('value', 20)
+                new_budget = current_budget * (1 + percentage/100)
+                budget_note = f"Increase by {percentage}%"
+            elif change_type == 'percentage_decrease':
+                percentage = change_value.get('value', 20)
+                new_budget = current_budget * (1 - percentage/100)
+                budget_note = f"Decrease by {percentage}%"
+            elif change_type == 'absolute':
+                new_budget = change_value.get('value', current_budget)
+                budget_note = f"Set to specific value"
+            else:
+                new_budget = current_budget * 1.2  # Default 20% increase
+                budget_note = "Default 20% increase"
+            
+            # Allow editing the new budget with safe min_value
+            edited_budget = st.number_input(
+                "New Budget",
+                min_value=min_value,
+                value=float(new_budget),
+                step=1.0,
+                format="%.2f",
+                help="Enter the new daily budget amount",
+                key=f"new_budget_{index}"
+            )
+            
+            # Store the edited value
+            if 'change_value' not in edited_suggestion:
+                edited_suggestion['change_value'] = {}
+            
+            edited_suggestion['change_value']['value'] = edited_budget
+            if change_type:
+                edited_suggestion['change_value']['type'] = 'absolute'  # Change to absolute after editing
+            
+            # Show percentage change from original
+            if current_budget > 0:
+                pct_change = ((edited_budget / current_budget) - 1) * 100
+                st.markdown(f"*{pct_change:+.1f}% from original budget*")
+            
+        elif action_type == 'STATUS_CHANGE':
+            st.markdown("#### Status Change")
+            
+            # Get current status
+            current_status = edited_suggestion.get('current_value', 'UNKNOWN')
+            if current_status is None:
+                current_status = 'UNKNOWN'
+                
+            # Show current status (read-only)
+            st.text_input("Current Status", value=current_status, disabled=True, key=f"current_status_{index}")
+            
+            # Get the new status from the suggestion
+            change_value = edited_suggestion.get('change_value', {})
+            new_status = change_value.get('value', 'PAUSED') if change_value else 'PAUSED'
+            
+            # Allow selecting the new status
+            edited_status = st.selectbox(
+                "New Status",
+                options=["ENABLED", "PAUSED", "REMOVED"],
+                index=["ENABLED", "PAUSED", "REMOVED"].index(new_status) if new_status in ["ENABLED", "PAUSED", "REMOVED"] else 1,
+                key=f"new_status_{index}"
+            )
+            
+            # Store the edited value
+            if 'change_value' not in edited_suggestion:
+                edited_suggestion['change_value'] = {}
+            
+            edited_suggestion['change_value']['type'] = 'status'
+            edited_suggestion['change_value']['value'] = edited_status
+        
+        # For other action types, show a simple text editor
+        else:
+            change = edited_suggestion.get('change', 'No specific change details')
+            edited_change = st.text_area("Change Details", value=change, key=f"change_{index}")
+            edited_suggestion['change'] = edited_change
     
-    # Show result message if present
-    if suggestion.get('result_message'):
-        st.info(suggestion['result_message'])
+    with col2:
+        # Display rationale
+        rationale = edited_suggestion.get('rationale', 'No rationale provided')
+        st.markdown("#### Rationale")
+        edited_rationale = st.text_area("Why this change is recommended", value=rationale, key=f"rationale_{index}")
+        edited_suggestion['rationale'] = edited_rationale
+        
+        # Display result message if available
+        if edited_suggestion.get('result_message'):
+            st.markdown("#### Result")
+            st.info(edited_suggestion['result_message'])
     
-    # End card
+    # Close the card div
     st.markdown("</div>", unsafe_allow_html=True)
+    
+    # Return the edited suggestion
+    return edited_suggestion
 
 # Function to render suggestion list
 def render_suggestions():
@@ -1451,168 +1495,128 @@ def render_scheduler_tasks():
 
 # Function to render scheduler configuration form
 def render_scheduler_form():
-    """Render a form to create new scheduled tasks."""
-    st.subheader("Schedule New Task")
+    """Render the form for scheduling tasks."""
+    st.subheader("Schedule a New Task")
     
-    with st.form(key="schedule_task_form"):
-        # Task selection
-        st.markdown("#### Task Selection")
+    with st.form("schedule_task_form"):
+        # Task type selection
         task_type = st.selectbox(
-            "What would you like to schedule?",
+            "Task Type",
             options=list(TASK_TYPES.keys()),
-            format_func=lambda x: f"{TASK_TYPES[x]['icon']} {TASK_TYPES[x]['name']}",
+            format_func=lambda x: TASK_TYPES[x]["name"],
             help="Select the type of task to schedule"
         )
         
-        # Display description of selected task
-        st.info(TASK_TYPES[task_type]['description'])
+        # Display task description
+        st.markdown(f"**{TASK_TYPES[task_type]['description']}**")
         
-        # Task parameters
-        st.markdown("#### Data Parameters")
-        task_params = {}
+        # Create columns for schedule parameters
+        col1, col2 = st.columns(2)
         
-        # Dynamic parameters based on task type
-        required_params = TASK_TYPES[task_type]['params']
-        
-        if 'days' in required_params:
-            # More flexible date range options
-            date_range_col1, date_range_col2 = st.columns(2)
+        with col1:
+            # Schedule type
+            schedule_type = st.radio(
+                "Schedule Type",
+                options=["once", "daily", "weekly"],
+                format_func=lambda x: x.capitalize(),
+                help="Select how often to run this task"
+            )
             
-            with date_range_col1:
-                date_option = st.radio(
-                    "Data Time Range",
-                    options=["Last X Days", "Custom Date Range"],
+            # Day of week for weekly schedules
+            day_of_week = None
+            if schedule_type == "weekly":
+                days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+                day_of_week = st.selectbox(
+                    "Day of Week",
+                    options=days,
                     index=0,
-                    help="Select how to specify the time range"
+                    help="Select which day of the week to run this task"
+                ).lower()
+            
+            # Date for one-time tasks or start date for recurring tasks
+            if schedule_type == "once":
+                date = st.date_input(
+                    "Date",
+                    value=datetime.now().date() + timedelta(days=1),
+                    min_value=datetime.now().date(),
+                    help="Select the date to run this task"
+                )
+            else:
+                date = st.date_input(
+                    "Start Date",
+                    value=datetime.now().date(),
+                    min_value=datetime.now().date(),
+                    help="Select when to start this recurring task"
                 )
             
-            with date_range_col2:
-                if date_option == "Last X Days":
-                    task_params['days'] = st.number_input(
-                        "Number of Days",
-                        min_value=1,
-                        max_value=365,  # Extended from 90 days to 365
-                        value=30,
-                        help="Number of days of historical data to analyze (1-365)"
-                    )
-                else:
-                    # Custom date range using date picker
-                    today = datetime.now().date()
-                    start_date = st.date_input(
-                        "Start Date", 
-                        value=today - timedelta(days=30),
-                        max_value=today,
-                        help="Select start date for analysis period"
-                    )
-                    end_date = st.date_input(
-                        "End Date", 
-                        value=today, 
-                        min_value=start_date,
-                        max_value=today,
-                        help="Select end date for analysis period"
-                    )
-                    # Calculate days between dates
-                    delta = end_date - start_date
-                    task_params['days'] = delta.days + 1  # +1 to include both start and end dates
-        
-        if 'campaign_id' in required_params:
-            st.markdown("#### Campaign Selection")
-            # If we have campaigns loaded, show a dropdown
-            campaign_selection = st.radio(
-                "Campaign Scope",
-                options=["All Campaigns", "Specific Campaign"],
-                index=0,
-                help="Choose whether to process all campaigns or a specific one"
+            # Time of day
+            time_val = st.time_input(
+                "Time",
+                value=datetime.now().replace(hour=9, minute=0, second=0).time(),
+                help="Select the time to run this task"
             )
+        
+        with col2:
+            # Task parameters
+            st.subheader("Task Parameters")
             
-            if campaign_selection == "Specific Campaign":
-                if st.session_state.campaigns:
-                    campaign_options = [(c['id'], f"{c['name']} (ID: {c['id']})") for c in st.session_state.campaigns]
-                    campaign_ids = [c[0] for c in campaign_options]
-                    campaign_labels = [c[1] for c in campaign_options]
-                    
-                    selected_index = st.selectbox(
-                        "Select Campaign",
-                        options=range(len(campaign_options)),
-                        format_func=lambda i: campaign_labels[i],
-                        help="Select a specific campaign to analyze"
-                    )
-                    
-                    task_params['campaign_id'] = campaign_ids[selected_index]
-                else:
-                    st.warning("No campaigns loaded. Please fetch campaign data first or enter a campaign ID manually.")
-                    # Allow manual entry
-                    task_params['campaign_id'] = st.text_input(
-                        "Campaign ID",
-                        value="",
-                        help="Enter a specific campaign ID"
-                    )
-            else:
-                # All campaigns selected
-                task_params['campaign_id'] = None
-        
-        # Schedule settings
-        st.markdown("#### Schedule Settings")
-        schedule_type = st.selectbox(
-            "How often should this task run?",
-            options=["daily", "weekly", "once"],
-            format_func=lambda x: x.capitalize(),
-            help="Frequency of task execution"
-        )
-        
-        # Schedule details
-        time_col1, time_col2 = st.columns(2)
-        
-        with time_col1:
-            hour = st.number_input(
-                "Hour (24-hour format)",
-                min_value=0,
-                max_value=23,
-                value=9,
-                help="Hour to run the task (0-23)"
-            )
-        
-        with time_col2:
-            minute = st.number_input(
-                "Minute",
-                min_value=0,
-                max_value=59,
-                value=0,
-                help="Minute to run the task (0-59)"
-            )
-        
-        # Day of week for weekly schedules
-        day_of_week = None
-        if schedule_type == "weekly":
-            day_of_week = st.selectbox(
-                "Day of Week",
-                options=["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"],
-                format_func=lambda x: x.capitalize(),
-                help="Day of the week to run the task"
-            )
+            # Days of data to analyze - with flexible range up to 365 days
+            if "days" in TASK_TYPES[task_type]["params"]:
+                days_ago = st.number_input(
+                    "Days of Data",
+                    min_value=1,
+                    max_value=365,
+                    value=30,
+                    help="Number of days of data to analyze (1-365)"
+                )
+            
+            # Campaign ID filter (optional)
+            campaign_id = None
+            if "campaign_id" in TASK_TYPES[task_type]["params"]:
+                campaign_id_input = st.text_input(
+                    "Campaign ID (optional)",
+                    value="",
+                    help="Enter a specific campaign ID to analyze, or leave blank for all campaigns"
+                )
+                campaign_id = campaign_id_input if campaign_id_input else None
         
         # Submit button
-        submit_col1, submit_col2 = st.columns([3, 1])
-        with submit_col2:
-            submit_button = st.form_submit_button("Schedule Task")
+        submitted = st.form_submit_button("Schedule Task")
         
-        if submit_button:
-            # Schedule the task
-            task_id = schedule_task(
-                task_type=task_type,
-                schedule_type=schedule_type,
-                hour=hour,
-                minute=minute,
-                day_of_week=day_of_week,
-                **task_params
-            )
+        if submitted:
+            # Calculate hour and minute from time_input
+            hour = time_val.hour
+            minute = time_val.minute
             
-            if task_id:
-                st.success(f"Task scheduled successfully! Task ID: {task_id}")
-                # Force refresh to show the new task
-                st.rerun()
-            else:
-                st.error("Failed to schedule task. Check the logs for details.")
+            # Create task parameters dictionary
+            task_params = {}
+            if "days" in TASK_TYPES[task_type]["params"]:
+                task_params["days"] = int(days_ago)
+            if "campaign_id" in TASK_TYPES[task_type]["params"] and campaign_id:
+                task_params["campaign_id"] = campaign_id
+            
+            # Schedule the task
+            try:
+                task_id = schedule_task(
+                    task_type=task_type,
+                    schedule_type=schedule_type,
+                    hour=hour,
+                    minute=minute,
+                    day_of_week=day_of_week,
+                    **task_params
+                )
+                
+                if task_id:
+                    st.success(f"Task scheduled successfully! Task ID: {task_id}")
+                    # Rerun the app to refresh the UI
+                    time.sleep(1)
+                    st.rerun()
+                else:
+                    st.error("Failed to schedule task. Please check the logs for details.")
+            
+            except Exception as e:
+                st.error(f"Error scheduling task: {str(e)}")
+                logger.exception(f"Error scheduling task: {str(e)}")
 
 # Main app logic
 def main():

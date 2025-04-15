@@ -30,10 +30,10 @@ class ChatInterface:
         
         # Define command patterns with more specific triggers for different analyses
         self.command_patterns = {
-            'fetch_data': r'(fetch|get|retrieve|pull|download).*(data|campaigns|performance)',
             'fetch_keywords': r'(fetch|get|retrieve|pull|download).*(keyword|keywords)',
+            'fetch_data': r'(fetch|get|retrieve|pull|download).*(data|campaigns|performance)',
+            'analyze_keywords': r'(analyze|evaluate|assess|optimize|suggestions|give).*(keyword|keywords)',
             'analyze_campaigns': r'(analyze|evaluate|assess|optimization|optimize|suggestions).*(campaign|campaigns)',
-            'analyze_keywords': r'(analyze|evaluate|assess|optimization|optimize|suggestions).*(keyword|keywords)',
             'comprehensive_analysis': r'(analyze|evaluate|assess|optimization|optimize|suggestions).*(account|full|complete|comprehensive)',
             'help': r'help|assist|guide|instructions|commands',
             'custom_query': r'query|search|find|filter',
@@ -275,6 +275,127 @@ Data Freshness: {self._get_data_freshness_string()}
             return f"Relatively fresh (refreshed {int(time_diff.total_seconds() / 3600)} hours ago)"
         else:
             return f"Stale (refreshed {int(time_diff.total_seconds() / 3600)} hours ago)"
+
+    def _process_custom_query(self, query, account_summary):
+        """
+        Process a custom query about the account data using GPT-4.
+        
+        Args:
+            query (str): User's query
+            account_summary (str): Summary of account data for context
+            
+        Returns:
+            str: Response to the query
+        """
+        self.logger.info(f"Processing custom query: {query}")
+        
+        try:
+            # Create prompt for GPT
+            system_message = """
+You are an expert Google Ads PPC specialist assistant. Your role is to answer specific questions about Google Ads account data and provide actionable insights.
+
+When answering:
+1. Be specific and data-driven - use actual numbers from the provided account data
+2. Be concise but thorough
+3. When appropriate, provide actionable next steps
+4. If you don't have enough information to answer a question fully, acknowledge the limitations
+5. Focus only on the query and don't add unrelated information
+"""
+            
+            prompt = f"""
+ACCOUNT DATA SUMMARY:
+{account_summary}
+
+USER QUERY:
+{query}
+
+Please answer this specific query about the Google Ads account using the data provided above.
+"""
+            
+            # Call GPT-4 with the query
+            response = self.openai_client.chat.completions.create(
+                model="gpt-4",
+                messages=[
+                    {"role": "system", "content": system_message},
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=1000,
+                temperature=0.3
+            )
+            
+            return response.choices[0].message.content
+            
+        except Exception as e:
+            error_message = f"Error processing custom query: {str(e)}"
+            self.logger.error(error_message)
+            return f"I encountered an issue analyzing your query: {str(e)}"
+    
+    def _generate_general_response(self, message):
+        """
+        Generate a general response to the user's message using GPT-4 with account context.
+        
+        Args:
+            message (str): User's message
+            
+        Returns:
+            str: Generated response
+        """
+        self.logger.info(f"Generating general response for: {message}")
+        
+        try:
+            # Get account data summary for context if available
+            account_context = ""
+            if self.latest_campaigns:
+                account_context = self.get_data_summary(self.latest_campaigns, self.latest_keywords)
+            
+            # Create a context message with chat history and account data
+            context_message = "Google Ads Optimization Agent Conversation\n\n"
+            
+            # Add abbreviated chat history (last 5 messages) for context
+            if len(self.chat_history) > 0:
+                context_message += "RECENT CONVERSATION:\n"
+                for msg in self.chat_history[-min(5, len(self.chat_history)):]:
+                    context_message += f"{msg['role'].upper()}: {msg['content'][:100]}{'...' if len(msg['content']) > 100 else ''}\n"
+                context_message += "\n"
+            
+            # Add account data summary if available
+            if account_context:
+                context_message += "ACCOUNT DATA CONTEXT:\n" + account_context + "\n\n"
+            
+            # Define system message
+            system_message = """
+You are an expert Google Ads consultant and PPC specialist. You provide helpful, accurate, and concise responses about Google Ads campaigns, keywords, and optimization strategies.
+
+Your responses should be:
+1. Specific and tailored to the user's query
+2. Data-driven when account data is available
+3. Helpful and actionable
+4. Concise but complete
+5. Relevant to PPC advertising and Google Ads
+
+If you don't have enough information to provide a complete answer, ask clarifying questions. Always maintain a professional, knowledgeable tone.
+"""
+            
+            # Call GPT-4 with the message and context
+            response = self.openai_client.chat.completions.create(
+                model="gpt-4",
+                messages=[
+                    {"role": "system", "content": system_message},
+                    {"role": "user", "content": context_message + "USER QUERY: " + message}
+                ],
+                max_tokens=1000,
+                temperature=0.3
+            )
+            
+            # Store assistant's response in chat history
+            self.add_message('assistant', response.choices[0].message.content)
+            
+            return response.choices[0].message.content
+            
+        except Exception as e:
+            error_message = f"Error generating response: {str(e)}"
+            self.logger.error(error_message)
+            return f"I experienced an error while generating a response: {str(e)}"
 
     def ensure_data_context(self, days=30, force_refresh=False):
         """

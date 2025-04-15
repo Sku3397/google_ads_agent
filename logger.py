@@ -3,6 +3,8 @@ import os
 from datetime import datetime
 import sys
 import traceback
+import glob
+import codecs
 
 class AdsAgentLogger:
     """
@@ -16,20 +18,25 @@ class AdsAgentLogger:
             
         # Generate log filename with timestamp
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        log_file = os.path.join(log_dir, f"ads_agent_{timestamp}.log")
+        self.log_file = os.path.join(log_dir, f"ads_agent_{timestamp}.log")
         
         # Configure logger
         self.logger = logging.getLogger("AdsAgent")
         self.logger.setLevel(logging.DEBUG)
         
+        # Clear any existing handlers (in case of reinitialization)
+        if self.logger.handlers:
+            for handler in self.logger.handlers:
+                self.logger.removeHandler(handler)
+        
         # File handler for all logs - with explicit UTF-8 encoding
-        file_handler = logging.FileHandler(log_file, encoding='utf-8')
+        file_handler = logging.FileHandler(self.log_file, encoding='utf-8', mode='w')
         file_handler.setLevel(logging.DEBUG)
         file_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
         file_handler.setFormatter(file_formatter)
         self.logger.addHandler(file_handler)
         
-        # Stream handler for console output - with explicit UTF-8 encoding
+        # Stream handler for console output
         stream_handler = logging.StreamHandler(sys.stdout)
         stream_handler.setLevel(logging.INFO)
         stream_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
@@ -92,9 +99,20 @@ class AdsAgentLogger:
     def _ensure_string(self, message):
         """Ensure message is a string and handle any problematic Unicode characters"""
         if not isinstance(message, str):
-            message = str(message)
-        # Replace any potentially problematic Unicode characters if needed
-        # This is a fallback in case encoding alone doesn't solve the issue
+            try:
+                message = str(message)
+            except UnicodeEncodeError:
+                # Handle Unicode encoding error
+                message = str(message).encode('utf-8', 'replace').decode('utf-8')
+        
+        # Ensure the message is properly encoded for log files
+        try:
+            # Try to encode and decode to catch any character issues
+            message.encode('utf-8').decode('utf-8')
+        except UnicodeError:
+            # Replace problematic characters if encoding fails
+            message = message.encode('utf-8', 'replace').decode('utf-8')
+            
         return message
         
     def _add_recent_log(self, level, message):
@@ -133,4 +151,17 @@ class AdsAgentLogger:
         
     def get_error_logs(self):
         """Get all error and exception logs"""
-        return self.error_logs.copy() 
+        return self.error_logs.copy()
+        
+    def get_latest_log_file(self):
+        """Get the path to the most recent log file"""
+        if not os.path.exists("logs"):
+            return None
+            
+        log_files = glob.glob("logs/ads_agent_*.log")
+        if not log_files:
+            return None
+            
+        # Sort by modification time (most recent last)
+        log_files.sort(key=lambda x: os.path.getmtime(x))
+        return log_files[-1] 

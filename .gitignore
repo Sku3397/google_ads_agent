@@ -43,4 +43,18 @@ ENV/
 
 # Local cache
 __pycache__/
-.pytest_cache/ 
+.pytest_cache/
+
+# Local configuration
+google-ads.yaml
+*.key
+*.pem
+credentials.json
+token.json
+
+# Cache
+.cache/
+cached_files/
+
+# OS
+Thumbs.db 

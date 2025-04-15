@@ -116,111 +116,102 @@ class AdsOptimizer:
         if not campaigns:
             return "No campaign data available for optimization."
         
-        campaign_data = self.format_campaign_data(campaigns)
-        keyword_data = self.format_keyword_data(keywords) if keywords else "No keyword data available."
-        
-        # Determine the scope of analysis based on available data
-        analysis_type = "comprehensive" if keywords else "campaign-only"
-        days_analyzed = campaigns[0].get('days', 30) if campaigns else 30
-        
-        # Enhanced, highly specific prompt for the PPC expert
-        prompt = f"""
-        You are a senior Google Ads PPC consultant with 10+ years experience optimizing campaigns.
-        Your expertise includes advanced bid strategies, account structure optimization, and granular keyword-level analysis.
-        You are renowned for your ability to provide extremely specific, actionable recommendations that maximize ROAS.
-        
-        DATA CONTEXT:
-        You are analyzing Google Ads data for the past {days_analyzed} days. 
-        Analysis type: {analysis_type}
-        
-        DATA SUMMARY:
-        - Campaign data: {len(campaigns)} campaigns available
-        - Keyword data: {"Available - " + str(len(keywords)) + " keywords" if keywords else "Not available"}
-        
-        OPTIMIZATION TASK:
-        Based on the detailed performance data below, provide extremely specific, data-driven optimization recommendations.
-        Your suggestions must be actionable, precise, and backed by the performance metrics in the data.
-        
-        OPTIMIZATION PRIORITY:
-        You MUST focus primarily on keyword-level optimization. This is critical. Analyze EVERY single keyword in the account
-        and make specific bid adjustments based on performance metrics. This is your highest priority task.
-        
-        OPTIMIZATION REQUIREMENTS:
-        
-        1. KEYWORD BID ADJUSTMENTS (HIGHEST PRIORITY): 
-           - Analyze EVERY keyword in the account and make bid adjustment recommendations
-           - For high-performing keywords (good conversion rate, positive ROAS), suggest specific bid increases with exact amounts
-           - For underperforming keywords with high spend and low conversions, suggest bid reductions with exact amounts
-           - Include the exact current bid and the specific recommended new bid (e.g., "Increase from $1.20 to $1.45")
-           - Consider quality score in your recommendations
-           - Provide at least 5-10 keyword-level bid adjustments
-        
-        2. STATUS CHANGES:
-           - Identify specific keywords or campaigns to pause based on clear performance thresholds
-           - Include exact metrics that justify the pause (e.g., "Spent $245 with 0 conversions over {days_analyzed} days")
-           - Recommend keywords to enable if they show high potential but are currently paused
-        
-        3. BUDGET ADJUSTMENTS:
-           - Recommend specific budget increases for campaigns with high conversion rates and limited by budget
-           - Suggest exact budget amounts, not just percentages (e.g., "Increase daily budget from $50.00 to $75.00")
-           - Justify with performance metrics like conversion rate, ROAS, or impression share lost due to budget
-        
-        4. MATCH TYPE & QUALITY OPTIMIZATIONS:
-           - Identify keywords with low quality scores and suggest specific improvements
-           - Recommend match type changes where appropriate (e.g., from broad to phrase or phrase to exact)
-           - Suggest new negative keywords based on performance patterns
-        
-        FORMAT YOUR RESPONSE:
-        Number each suggestion and follow this precise format with COMPLETE TITLES:
-        
-        1. [ACTION_TYPE] Clear and complete title describing the change
-        - Entity: [ENTITY_TYPE] ID: entity_id_or_name
-        - Current Value: [current value/status/bid/etc.]
-        - Change: [Specific change with exact values]
-        - Expected Impact: [Data-backed prediction of results]
-        - Rationale: [Specific metrics that justify this change]
-        
-        For example:
-        
-        1. [BID_ADJUSTMENT] Increase bid for high-converting keyword "premium widgets"
-        - Entity: [KEYWORD] ID: "premium widgets"
-        - Current Value: $0.75 CPC, 8.5% conversion rate, 450% ROAS
-        - Change: Increase bid by 25% from $0.75 to $0.94
-        - Expected Impact: 15-20% more conversions with maintained ROAS
-        - Rationale: This keyword has a conversion rate 3x the account average (8.5% vs 2.8%) and generates a positive ROAS of 450%. Quality score is good (8/10). Increasing visibility will likely yield more of these valuable conversions.
-        
-        IMPORTANT: Your recommendations must be extremely specific and immediately actionable. Include exact values for all changes. Make sure they are directly supported by the data provided. FOCUS ON KEYWORD-LEVEL OPTIMIZATIONS and provide at least 5-10 specific keyword bid adjustments.
-        
-        AVAILABLE DATA:
-
-        {campaign_data}
-        
-        {keyword_data}
-        
-        Use these action types in your suggestions:
-        - BID_ADJUSTMENT: For changing keyword or ad group bids
-        - STATUS_CHANGE: For pausing/enabling keywords, ad groups or campaigns
-        - BUDGET_ADJUSTMENT: For modifying campaign budgets
-        - MATCH_TYPE_CHANGE: For changing keyword match types
-        - QUALITY_IMPROVEMENT: For suggestions to improve quality scores
-        - NEGATIVE_KEYWORD: For adding negative keywords
-        - CAMPAIGN_SETTINGS: For adjusting campaign settings like bidding strategy
-        """
-        
         try:
+            # Format data for GPT-4
+            campaign_data = self.format_campaign_data(campaigns)
+            keyword_data = self.format_keyword_data(keywords) if keywords else "No keyword data available."
+            
+            # Determine the scope of analysis based on available data
+            analysis_type = "comprehensive" if keywords and len(keywords) > 0 else "campaign-only"
+            days_analyzed = campaigns[0].get('days', 30) if campaigns else 30
+            
+            # Enhanced, highly specific prompt for the PPC expert
+            prompt = f"""
+            You are a senior Google Ads PPC consultant with 10+ years experience optimizing campaigns.
+            Your expertise includes advanced bid strategies, account structure optimization, and granular keyword-level analysis.
+            You are renowned for your ability to provide extremely specific, actionable recommendations that maximize ROAS.
+            
+            DATA CONTEXT:
+            You are analyzing Google Ads data for the past {days_analyzed} days. 
+            Analysis type: {analysis_type}
+            
+            DATA SUMMARY:
+            - Campaign data: {len(campaigns)} campaigns available
+            - Keyword data: {"Available - " + str(len(keywords)) + " keywords" if keywords and len(keywords) > 0 else "Not available"}
+            
+            OPTIMIZATION TASK:
+            Based on the detailed performance data below, provide extremely specific, data-driven optimization recommendations.
+            Your suggestions must be actionable, precise, and backed by the performance metrics in the data.
+            
+            OPTIMIZATION PRIORITY:
+            {"You MUST focus primarily on keyword-level optimization. This is critical. Analyze EVERY single keyword in the account and make specific bid adjustments based on performance metrics. This is your highest priority task." if keywords and len(keywords) > 0 else "Since keyword data is not available, focus on campaign-level optimizations such as budget adjustments and status changes."}
+            
+            OPTIMIZATION REQUIREMENTS:
+            
+            1. {"KEYWORD BID ADJUSTMENTS (HIGHEST PRIORITY): \n   - Analyze EVERY keyword in the account and make bid adjustment recommendations\n   - For high-performing keywords (good conversion rate, positive ROAS), suggest specific bid increases with exact amounts\n   - For underperforming keywords with high spend and low conversions, suggest bid reductions with exact amounts\n   - Include the exact current bid and the specific recommended new bid (e.g., \"Increase from $1.20 to $1.45\")\n   - Consider quality score in your recommendations\n   - Provide at least 5-10 keyword-level bid adjustments" if keywords and len(keywords) > 0 else "CAMPAIGN BUDGET ADJUSTMENTS (HIGHEST PRIORITY):\n   - Recommend specific budget adjustments for each campaign based on performance\n   - Include the exact current budget and recommended new budget\n   - Justify with conversion rate and cost per conversion metrics"}
+            
+            2. STATUS CHANGES:
+               - Identify specific {"keywords or" if keywords and len(keywords) > 0 else ""} campaigns to pause based on clear performance thresholds
+               - Include exact metrics that justify the pause (e.g., "Spent $245 with 0 conversions over {days_analyzed} days")
+               - Recommend {"keywords or" if keywords and len(keywords) > 0 else ""} campaigns to enable if they show high potential but are currently paused
+            
+            3. {"BUDGET ADJUSTMENTS:" if keywords and len(keywords) > 0 else "ADDITIONAL CAMPAIGN OPTIMIZATIONS:"}
+               - Recommend specific budget increases for campaigns with high conversion rates and limited by budget
+               - Suggest exact budget amounts, not just percentages (e.g., "Increase daily budget from $50.00 to $75.00")
+               - Justify with performance metrics like conversion rate, ROAS, or impression share lost due to budget
+            
+            4. {"MATCH TYPE & QUALITY OPTIMIZATIONS:\n   - Identify keywords with low quality scores and suggest specific improvements\n   - Recommend match type changes where appropriate (e.g., from broad to phrase or phrase to exact)\n   - Suggest new negative keywords based on performance patterns" if keywords and len(keywords) > 0 else "BID STRATEGY OPTIMIZATION:\n   - Analyze current bidding strategies and recommend changes if appropriate\n   - Suggest specific bidding strategies for each campaign based on goals and performance"}
+            
+            FORMAT YOUR RESPONSE:
+            Number each suggestion and follow this precise format with COMPLETE TITLES:
+            
+            1. [ACTION_TYPE] Clear and complete title describing the change
+            - Entity: [ENTITY_TYPE] ID: entity_id_or_name
+            - Current Value: [current value/status/bid/etc.]
+            - Change: [Specific change with exact values]
+            - Expected Impact: [Data-backed prediction of results]
+            - Rationale: [Specific metrics that justify this change]
+            
+            For example:
+            
+            1. [BID_ADJUSTMENT] Increase bid for high-converting keyword "premium widgets"
+            - Entity: [KEYWORD] ID: "premium widgets"
+            - Current Value: $0.75 CPC, 8.5% conversion rate, 450% ROAS
+            - Change: Increase bid by 25% from $0.75 to $0.94
+            - Expected Impact: 15-20% more conversions with maintained ROAS
+            - Rationale: This keyword has a conversion rate 3x the account average (8.5% vs 2.8%) and generates a positive ROAS of 450%. Quality score is good (8/10). Increasing visibility will likely yield more of these valuable conversions.
+            
+            IMPORTANT: Your recommendations must be extremely specific and immediately actionable. Include exact values for all changes. Make sure they are directly supported by the data provided. {"FOCUS ON KEYWORD-LEVEL OPTIMIZATIONS and provide at least 5-10 specific keyword bid adjustments." if keywords and len(keywords) > 0 else "FOCUS ON CAMPAIGN-LEVEL OPTIMIZATIONS for each campaign in the account."}
+            
+            AVAILABLE DATA:
+
+            {campaign_data}
+            
+            {keyword_data}
+            
+            Use these action types in your suggestions:
+            - BID_ADJUSTMENT: For changing keyword or ad group bids
+            - STATUS_CHANGE: For pausing/enabling keywords, ad groups or campaigns
+            - BUDGET_ADJUSTMENT: For modifying campaign budgets
+            - MATCH_TYPE_CHANGE: For changing keyword match types
+            - QUALITY_IMPROVEMENT: For suggestions to improve quality scores
+            - NEGATIVE_KEYWORD: For adding negative keywords
+            - CAMPAIGN_SETTINGS: For adjusting campaign settings like bidding strategy
+            """
+            
             # Enhanced system message with more specific instructions
             system_message = """
-You are an elite Google Ads PPC specialist with expertise in campaign optimization. You provide extremely precise, data-driven recommendations backed by performance metrics.
+            You are an elite Google Ads PPC specialist with expertise in campaign optimization. You provide extremely precise, data-driven recommendations backed by performance metrics.
 
-When analyzing Google Ads accounts, you:
-1. Focus on the most impactful opportunities first
-2. Provide exact values for all recommended changes (specific bids, budgets, etc.)
-3. Always justify recommendations with specific performance metrics
-4. Identify both problems (poor performers) and opportunities (scaling top performers)
-5. Consider keyword quality scores, match types, and other technical factors in your analysis
+            When analyzing Google Ads accounts, you:
+            1. Focus on the most impactful opportunities first
+            2. Provide exact values for all recommended changes (specific bids, budgets, etc.)
+            3. Always justify recommendations with specific performance metrics
+            4. Identify both problems (poor performers) and opportunities (scaling top performers)
+            5. Consider keyword quality scores, match types, and other technical factors in your analysis
 
-Your recommendations are comprehensive, granular, and ready for immediate implementation.
-"""
+            Your recommendations are comprehensive, granular, and ready for immediate implementation.
+            """
             
             # Enhanced parameters for comprehensive keyword-level optimization - SINGLE CLEAN API CALL
             response = self.client.chat.completions.create(
@@ -234,10 +225,20 @@ Your recommendations are comprehensive, granular, and ready for immediate implem
             )
             
             suggestions_text = response.choices[0].message.content
-            return self.parse_suggestions(suggestions_text, campaigns, keywords)
             
+            # Parse suggestions into structured format
+            structured_suggestions = self.parse_suggestions(suggestions_text, campaigns, keywords)
+            
+            # Validate we got actionable suggestions
+            if isinstance(structured_suggestions, list) and len(structured_suggestions) > 0:
+                return structured_suggestions
+            else:
+                # If no suggestions were parsed, return the raw text
+                return [{"title": "Optimization Suggestions", "content": suggestions_text, "type": "raw"}]
+                
         except Exception as e:
-            return f"Error generating optimization suggestions: {str(e)}"
+            error_message = f"Error generating optimization suggestions: {str(e)}"
+            return [{"title": "Error", "content": error_message, "type": "error"}]
     
     def parse_suggestions(self, suggestions_text, campaigns, keywords=None):
         """

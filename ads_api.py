@@ -41,14 +41,14 @@ class GoogleAdsAPI:
         start_date = end_date - timedelta(days=days_ago-1)  # -1 to include end_date in range
         
         # Format dates as YYYYMMDD
-        start_str = start_date.strftime('%Y%m%d')
-        end_str = end_date.strftime('%Y%m%d')
+        start_str = start_date.strftime('%Y-%m-%d')
+        end_str = end_date.strftime('%Y-%m-%d')
         
         # Log the date range being used
         logging.info(f"Using date range from {start_date} to {end_date}")
         
         # Return the date range clause in the format Google Ads API expects
-        return f"segments.date >= '{start_str}' AND segments.date <= '{end_str}'"
+        return f"segments.date BETWEEN '{start_str}' AND '{end_str}'"
     
     def get_campaign_performance(self, days_ago=30):
         """
