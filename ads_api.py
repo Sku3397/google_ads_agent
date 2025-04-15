@@ -27,25 +27,31 @@ class GoogleAdsAPI:
         Generate a date range clause for Google Ads API queries.
         
         Args:
-            days_ago (int): Number of days to look back
+            days_ago (int): Number of days to look back (1-365)
             
         Returns:
             str: Date range clause for Google Ads API
         """
-        # Validate input
-        if not isinstance(days_ago, int) or days_ago < 1 or days_ago > 365:
-            raise ValueError("days_ago must be an integer between 1 and 365")
+        # Enhanced validation with clear error message
+        if not isinstance(days_ago, int):
+            raise ValueError(f"days_ago must be an integer, got {type(days_ago).__name__}")
         
-        # Get current date and calculate date range
+        if days_ago < 1:
+            raise ValueError(f"days_ago must be at least 1, got {days_ago}")
+            
+        if days_ago > 365:
+            raise ValueError(f"days_ago must be at most 365, got {days_ago}")
+        
+        # Calculate date range with proper handling
         end_date = datetime.now().date() - timedelta(days=1)  # Yesterday to account for data lag
         start_date = end_date - timedelta(days=days_ago-1)  # -1 to include end_date in range
         
-        # Format dates as YYYYMMDD
+        # Format dates as YYYY-MM-DD
         start_str = start_date.strftime('%Y-%m-%d')
         end_str = end_date.strftime('%Y-%m-%d')
         
         # Log the date range being used
-        logging.info(f"Using date range from {start_date} to {end_date}")
+        logging.info(f"Using date range from {start_str} to {end_str} ({days_ago} days)")
         
         # Return the date range clause in the format Google Ads API expects
         return f"segments.date BETWEEN '{start_str}' AND '{end_str}'"
@@ -139,20 +145,34 @@ class GoogleAdsAPI:
         Returns:
             list: List of keyword data dictionaries
         """
-        # Validate input
-        if not isinstance(days_ago, int) or days_ago < 1 or days_ago > 365:
-            raise ValueError("days_ago must be an integer between 1 and 365")
+        # Validate input with improved error messages
+        if not isinstance(days_ago, int):
+            raise ValueError(f"days_ago must be an integer, got {type(days_ago).__name__}")
+        
+        if days_ago < 1:
+            raise ValueError(f"days_ago must be at least 1, got {days_ago}")
+            
+        if days_ago > 365:
+            raise ValueError(f"days_ago must be at most 365, got {days_ago}")
         
         ga_service = self.client.get_service("GoogleAdsService")
         
         # Use date range clause instead of LAST_X_DAYS
         date_range_clause = self._get_date_range_clause(days_ago)
         
-        # Construct WHERE clause
+        # Construct WHERE clause with improved campaign filtering
         where_clause = date_range_clause
         if campaign_id:
+            # Clean and validate campaign_id
+            campaign_id = str(campaign_id).strip()
+            if not campaign_id.isdigit():
+                raise ValueError(f"campaign_id must contain only digits, got '{campaign_id}'")
             where_clause += f" AND campaign.id = {campaign_id}"
         
+        # Add serving status check to ensure we only get active keywords
+        where_clause += " AND ad_group_criterion.status != 'REMOVED'"
+        
+        # Enhanced query with more relevant metrics for optimization
         query = f"""
             SELECT
                 campaign.id,
@@ -172,51 +192,71 @@ class GoogleAdsAPI:
                 metrics.conversions,
                 metrics.cost_micros,
                 metrics.cost_per_conversion,
-                metrics.average_position
+                metrics.top_impression_percentage,
+                metrics.search_impression_share,
+                metrics.search_top_impression_share
             FROM keyword_view
             WHERE {where_clause}
             ORDER BY metrics.clicks DESC
+            LIMIT 10000  # Increased limit to ensure we get all relevant keywords
         """
         
         try:
-            # Issue the search request
+            # Issue the search request with better error handling
+            logging.info(f"Fetching keyword data for the last {days_ago} days{' for campaign ' + campaign_id if campaign_id else ''}")
             response = ga_service.search(customer_id=self.customer_id, query=query)
             
-            # Process and return the results
+            # Process and return the results with enhanced error handling
             keywords = []
             for row in response:
-                # Skip if no keyword text (shouldn't happen but good to check)
-                if not hasattr(row.ad_group_criterion.keyword, "text"):
-                    continue
-                
-                keyword = {
-                    'campaign_id': row.campaign.id,
-                    'campaign_name': row.campaign.name,
-                    'ad_group_id': row.ad_group.id,
-                    'ad_group_name': row.ad_group.name,
-                    'keyword_text': row.ad_group_criterion.keyword.text,
-                    'match_type': row.ad_group_criterion.keyword.match_type.name if hasattr(row.ad_group_criterion.keyword, 'match_type') else None,
-                    'status': row.ad_group_criterion.status.name if hasattr(row.ad_group_criterion, 'status') else None,
-                    'system_serving_status': row.ad_group_criterion.system_serving_status.name if hasattr(row.ad_group_criterion, 'system_serving_status') else None,
-                    'quality_score': row.ad_group_criterion.quality_info.quality_score if hasattr(row.ad_group_criterion, 'quality_info') and hasattr(row.ad_group_criterion.quality_info, 'quality_score') else 0,
-                    'current_bid': row.ad_group_criterion.effective_cpc_bid_micros / 1000000 if hasattr(row.ad_group_criterion, 'effective_cpc_bid_micros') and row.ad_group_criterion.effective_cpc_bid_micros else 0,
-                    'clicks': row.metrics.clicks if hasattr(row.metrics, 'clicks') else 0,
-                    'impressions': row.metrics.impressions if hasattr(row.metrics, 'impressions') else 0,
-                    'ctr': row.metrics.ctr * 100 if hasattr(row.metrics, 'ctr') and row.metrics.ctr else 0,  # Convert to percentage
-                    'average_cpc': row.metrics.average_cpc / 1000000 if hasattr(row.metrics, 'average_cpc') and row.metrics.average_cpc else 0,  # Convert micros to actual currency
-                    'conversions': row.metrics.conversions,
-                    'cost': row.metrics.cost_micros / 1000000 if row.metrics.cost_micros else 0,  # Convert micros to actual currency
-                    'conversion_rate': (row.metrics.conversions / row.metrics.clicks * 100) if row.metrics.clicks else 0,  # Calculate manually and convert to percentage
-                    'cost_per_conversion': row.metrics.cost_per_conversion / 1000000 if row.metrics.cost_per_conversion else 0,  # Convert micros to actual currency
-                    'average_position': row.metrics.average_position if hasattr(row.metrics, 'average_position') else None,
-                    'days': days_ago  # Store the days parameter for reference
-                }
-                
-                # Create a unique ID for the keyword
-                keyword['id'] = f"adgroups/{row.ad_group.id}/criteria/{row.ad_group_criterion.keyword.text}"
-                
-                keywords.append(keyword)
+                try:
+                    # Skip if no keyword text (shouldn't happen but good to check)
+                    if not hasattr(row.ad_group_criterion.keyword, "text"):
+                        continue
+                    
+                    keyword = {
+                        'campaign_id': row.campaign.id,
+                        'campaign_name': row.campaign.name,
+                        'ad_group_id': row.ad_group.id,
+                        'ad_group_name': row.ad_group.name,
+                        'keyword_text': row.ad_group_criterion.keyword.text,
+                        'match_type': row.ad_group_criterion.keyword.match_type.name if hasattr(row.ad_group_criterion.keyword, 'match_type') else None,
+                        'status': row.ad_group_criterion.status.name if hasattr(row.ad_group_criterion, 'status') else None,
+                        'system_serving_status': row.ad_group_criterion.system_serving_status.name if hasattr(row.ad_group_criterion, 'system_serving_status') else None,
+                        'quality_score': row.ad_group_criterion.quality_info.quality_score if hasattr(row.ad_group_criterion, 'quality_info') and hasattr(row.ad_group_criterion.quality_info, 'quality_score') else 0,
+                        'current_bid': row.ad_group_criterion.effective_cpc_bid_micros / 1000000 if hasattr(row.ad_group_criterion, 'effective_cpc_bid_micros') and row.ad_group_criterion.effective_cpc_bid_micros else 0,
+                        'clicks': row.metrics.clicks if hasattr(row.metrics, 'clicks') else 0,
+                        'impressions': row.metrics.impressions if hasattr(row.metrics, 'impressions') else 0,
+                        'ctr': row.metrics.ctr * 100 if hasattr(row.metrics, 'ctr') and row.metrics.ctr else 0,  # Convert to percentage
+                        'average_cpc': row.metrics.average_cpc / 1000000 if hasattr(row.metrics, 'average_cpc') and row.metrics.average_cpc else 0,  # Convert micros to actual currency
+                        'conversions': row.metrics.conversions,
+                        'cost': row.metrics.cost_micros / 1000000 if row.metrics.cost_micros else 0,  # Convert micros to actual currency
+                        'conversion_rate': (row.metrics.conversions / row.metrics.clicks * 100) if row.metrics.clicks else 0,  # Calculate manually and convert to percentage
+                        'cost_per_conversion': row.metrics.cost_per_conversion / 1000000 if row.metrics.cost_per_conversion else 0,  # Convert micros to actual currency
+                        'top_impression_pct': row.metrics.top_impression_percentage if hasattr(row.metrics, 'top_impression_percentage') else None,
+                        'search_impression_share': row.metrics.search_impression_share if hasattr(row.metrics, 'search_impression_share') else None,
+                        'search_top_impression_share': row.metrics.search_top_impression_share if hasattr(row.metrics, 'search_top_impression_share') else None,
+                        'days': days_ago  # Store the days parameter for reference
+                    }
+                    
+                    # Calculate ROAS if possible
+                    if hasattr(row.metrics, 'conversions') and row.metrics.conversions > 0 and hasattr(row.metrics, 'cost_micros') and row.metrics.cost_micros > 0:
+                        # Assuming each conversion is worth $50 (this should be configurable in a real implementation)
+                        conversion_value = row.metrics.conversions * 50
+                        roas = (conversion_value / (row.metrics.cost_micros / 1000000)) * 100  # As percentage
+                        keyword['roas'] = roas
+                    else:
+                        keyword['roas'] = 0
+                    
+                    # Create a unique ID for the keyword
+                    keyword['id'] = f"adgroups/{row.ad_group.id}/criteria/{row.ad_group_criterion.keyword.text}"
+                    
+                    keywords.append(keyword)
+                except Exception as row_error:
+                    # Log error but continue processing other rows
+                    logging.error(f"Error processing keyword row: {str(row_error)}")
             
+            logging.info(f"Fetched {len(keywords)} keywords{' for campaign ' + campaign_id if campaign_id else ''}")
             return keywords
             
         except GoogleAdsException as ex:

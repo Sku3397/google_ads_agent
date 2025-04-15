@@ -2,6 +2,10 @@ from openai import OpenAI
 import re
 import json
 from datetime import datetime, timedelta
+import importlib
+import ads_api
+importlib.reload(ads_api)
+from ads_api import GoogleAdsAPI
 
 class ChatInterface:
     """
@@ -134,77 +138,81 @@ class ChatInterface:
                 
         return params
     
-    def get_data_summary(self, campaigns, keywords):
-        """
-        Create a concise summary of campaign and keyword data for context.
+    def get_data_summary(self, campaigns, keywords=None):
+        """Get a summary of account data for chat context"""
+        days_of_data = campaigns[0].get('days', 30) if campaigns and len(campaigns) > 0 else 30
         
-        Args:
-            campaigns (list): List of campaign data
-            keywords (list): List of keyword data
-            
-        Returns:
-            str: Formatted summary of the data
-        """
-        if not campaigns:
-            return "No campaign data available."
-        
-        # Calculate key account metrics
-        total_spend = sum(c['cost'] for c in campaigns)
-        total_conversions = sum(c['conversions'] for c in campaigns)
-        total_clicks = sum(c['clicks'] for c in campaigns)
-        total_impressions = sum(c['impressions'] for c in campaigns)
-        
-        # Calculate account-level metrics
-        overall_ctr = (total_clicks / total_impressions * 100) if total_impressions > 0 else 0
-        overall_conversion_rate = (total_conversions / total_clicks * 100) if total_clicks > 0 else 0
-        overall_cost_per_conversion = (total_spend / total_conversions) if total_conversions > 0 else 0
-        
-        # Data date range
-        days_of_data = campaigns[0].get('days', 30) if campaigns else 30
-        
-        # Create performance tiers for campaigns
+        # Initialize result lists
         high_performing = []
         low_performing = []
-        
-        for campaign in campaigns:
-            if campaign['conversion_rate'] > 2.0 and campaign['conversions'] > 5:
-                high_performing.append({
-                    'name': campaign['name'],
-                    'stats': f"Conv Rate: {campaign['conversion_rate']:.2f}%, Conversions: {campaign['conversions']:.1f}, Cost: ${campaign['cost']:.2f}"
-                })
-            elif campaign['cost'] > 100 and campaign['conversions'] < 1:
-                low_performing.append({
-                    'name': campaign['name'],
-                    'stats': f"Spent ${campaign['cost']:.2f} with {campaign['conversions']:.1f} conversions"
-                })
-        
-        # Keyword insights
         keyword_insights = []
-        if keywords and len(keywords) > 0:
-            # Top converting keywords
-            top_keywords = sorted(keywords, key=lambda k: k.get('conversions', 0), reverse=True)[:5]
-            for kw in top_keywords:
-                if kw.get('conversions', 0) > 0:
-                    keyword_insights.append({
-                        'text': kw['keyword_text'],
-                        'stats': f"Conversions: {kw['conversions']:.1f}, Cost: ${kw['cost']:.2f}, Conv Rate: {kw['conversion_rate']:.2f}%, CPC: ${kw['average_cpc']:.2f}"
+        wasted_spend = []
+        
+        # Calculate account level metrics
+        if campaigns:
+            total_spend = sum(c.get('cost', 0) for c in campaigns)
+            total_conversions = sum(c.get('conversions', 0) for c in campaigns)
+            total_clicks = sum(c.get('clicks', 0) for c in campaigns)
+            total_impressions = sum(c.get('impressions', 0) for c in campaigns)
+            
+            # Calculate derived metrics
+            overall_ctr = (total_clicks / total_impressions * 100) if total_impressions > 0 else 0
+            overall_conversion_rate = (total_conversions / total_clicks * 100) if total_clicks > 0 else 0
+            overall_cost_per_conversion = (total_spend / total_conversions) if total_conversions > 0 else 0
+            
+            # Find high and low performing campaigns
+            for c in campaigns:
+                if c.get('conversions', 0) >= 2 and c.get('conversion_rate', 0) > overall_conversion_rate:
+                    high_performing.append({
+                        'name': c.get('name', 'Unknown'),
+                        'stats': f"{c.get('conversions', 0):.1f} conv, {c.get('conversion_rate', 0):.2f}% conv rate, ${c.get('cost', 0):.2f} spent"
+                    })
+                    
+                if c.get('cost', 0) > 100 and c.get('conversions', 0) < 1:
+                    low_performing.append({
+                        'name': c.get('name', 'Unknown'),
+                        'stats': f"${c.get('cost', 0):.2f} spent, 0 conv, {c.get('clicks', 0)} clicks"
                     })
             
-            # Find high-spend keywords with no conversions
-            wasted_spend = []
-            for kw in keywords:
-                if kw.get('cost', 0) > 50 and kw.get('conversions', 0) < 1:
-                    wasted_spend.append({
-                        'text': kw['keyword_text'],
-                        'stats': f"Cost: ${kw['cost']:.2f}, Clicks: {kw['clicks']}, Impressions: {kw['impressions']}, CTR: {kw['ctr']:.2f}%"
+            high_performing.sort(key=lambda x: float(x['stats'].split('conv')[0].strip()), reverse=True)
+            low_performing.sort(key=lambda x: float(x['stats'].split('$')[1].split(' ')[0]), reverse=True)
+        else:
+            # Default values if no campaigns
+            total_spend = 0
+            total_conversions = 0
+            total_clicks = 0
+            total_impressions = 0
+            overall_ctr = 0
+            overall_conversion_rate = 0
+            overall_cost_per_conversion = 0
+        
+        # Keyword insights
+        if keywords:
+            # Top converting keywords
+            for k in keywords:
+                if k.get('conversions', 0) > 0:
+                    keyword_insights.append({
+                        'text': k.get('keyword_text', 'Unknown'),
+                        'stats': f"{k.get('conversions', 0):.1f} conv, {k.get('conversion_rate', 0):.2f}% conv rate, ${k.get('cost', 0):.2f} spent"
                     })
+                    
+                # Keywords with high spend and no conversions
+                if k.get('cost', 0) > 50 and k.get('conversions', 0) < 1:
+                    wasted_spend.append({
+                        'text': k.get('keyword_text', 'Unknown'),
+                        'stats': f"${k.get('cost', 0):.2f} spent, {k.get('clicks', 0)} clicks, 0 conv"
+                    })
+            
+            # Sort keyword insights
+            keyword_insights.sort(key=lambda x: float(x['stats'].split('conv')[0].strip()), reverse=True)
+            wasted_spend.sort(key=lambda x: float(x['stats'].split('$')[1].split(' ')[0]), reverse=True)
         
         # Format the summary
         summary = f"""
 ACCOUNT PERFORMANCE SUMMARY (Last {days_of_data} Days):
 
 Key Metrics:
-- Total Campaigns: {len(campaigns)}
+- Total Campaigns: {len(campaigns) if campaigns else 0}
 - Total Spend: ${total_spend:.2f}
 - Total Conversions: {total_conversions:.1f}
 - Total Clicks: {total_clicks}

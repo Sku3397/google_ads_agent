@@ -53,6 +53,12 @@ Run the Streamlit web application:
 streamlit run app.py
 ```
 
+Or use the provided batch file on Windows:
+
+```bash
+run.bat
+```
+
 The GUI provides the following sections:
 - **Dashboard**: Overview of campaign performance with key metrics
 - **Campaign Analysis**: Detailed analysis and visualization of campaign data
@@ -88,6 +94,66 @@ Schedule a daily analysis at a custom time:
 ```bash
 python main.py --schedule --hour 14 --minute 30
 ```
+
+## Testing
+
+The application includes comprehensive test suites to ensure functionality and stability:
+
+### Running All Tests
+
+Use the provided batch file on Windows:
+
+```bash
+test_all.bat
+```
+
+Or run individual test files:
+
+```bash
+py test_comprehensive.py   # Comprehensive functionality tests
+py test_logger.py          # Logger tests
+py test_ads_api.py         # Google Ads API tests
+py test_app.py             # Main application tests
+py test_command_pattern.py # Command pattern tests
+py test_command_direct.py  # Direct command tests
+```
+
+### Test Coverage
+
+- **test_comprehensive.py**: End-to-end testing of all major components
+- **test_logger.py**: Tests for UTF-8 encoding and proper logging
+- **test_ads_api.py**: Tests for Google Ads API integration
+- **test_app.py**: Tests for the main application functionality
+- **test_command_pattern.py**: Tests for the command pattern implementation
+- **test_command_direct.py**: Direct command execution tests
+
+## Troubleshooting
+
+### Python Command Issues
+
+If you encounter "Python was not found" errors, try using the `py` command instead:
+
+```bash
+py app.py
+```
+
+Or for Python 3 specifically:
+
+```bash
+python3 app.py
+```
+
+### Missing Packages
+
+If you encounter missing package errors, install the requirements:
+
+```bash
+py -m pip install -r requirements.txt
+```
+
+### API Connection Issues
+
+Ensure your `.env` file contains valid API credentials. Check the logs directory for detailed error messages.
 
 ## Project Structure
 
