@@ -6,26 +6,42 @@ import importlib
 import ads_api
 importlib.reload(ads_api)
 from ads_api import GoogleAdsAPI
+import sys
+import logging
+import os
+import time
+import inspect
+
+# Force a reload of the ads_api module to ensure we're using the latest version
+try:
+    # If ads_api is in sys.modules, remove it and reload
+    if 'ads_api' in sys.modules:
+        del sys.modules['ads_api']
+        import ads_api
+        importlib.reload(ads_api)
+        print(f"Reloaded ads_api module from {ads_api.__file__}")
+except Exception as e:
+    # Log but continue - don't prevent initialization
+    print(f"Error reloading ads_api module: {str(e)}")
 
 class ChatInterface:
     """
     Chat interface for the Google Ads Optimization Agent that allows for 
     natural language interaction with the agent.
     """
-    def __init__(self, ads_api, optimizer, config, logger):
+    def __init__(self, ads_api_instance, optimizer_instance, logger=None):
         """
-        Initialize the chat interface with required components.
+        Initialize the chat interface.
         
         Args:
-            ads_api (GoogleAdsAPI): API instance for Google Ads
-            optimizer (AdsOptimizer): Optimizer instance with GPT-4
-            config (dict): Configuration dictionary
-            logger (AdsAgentLogger): Logger instance
+            ads_api_instance: GoogleAdsAPI instance for fetching data
+            optimizer_instance: AdsOptimizer instance for generating optimization suggestions
+            logger: Logger instance
         """
-        self.ads_api = ads_api
-        self.optimizer = optimizer
-        self.logger = logger
-        self.openai_client = OpenAI(api_key=config['openai']['api_key'])
+        self.ads_api = ads_api_instance
+        self.optimizer = optimizer_instance
+        self.logger = logger or logging.getLogger("ChatInterface")
+        
         self.chat_history = []
         self.last_data_refresh = None
         self.latest_campaigns = None
@@ -67,7 +83,7 @@ class ChatInterface:
     
     def detect_command(self, message):
         """
-        Detect which command the user is trying to execute
+        Detect if a message contains a command.
         
         Args:
             message (str): User's message
@@ -75,9 +91,32 @@ class ChatInterface:
         Returns:
             str: Detected command or None
         """
-        for command, pattern in self.command_patterns.items():
-            if re.search(pattern, message, re.IGNORECASE):
-                return command
+        message_lower = message.lower()
+        
+        if re.search(r'fetch (campaign|account) data', message_lower):
+            return 'fetch_data'
+            
+        if re.search(r'fetch keyword data', message_lower):
+            return 'fetch_keywords'
+            
+        if re.search(r'analyz(e|ing) campaigns?', message_lower) or re.search(r'campaign (analysis|recommendations|suggestions)', message_lower):
+            return 'analyze_campaigns'
+            
+        if re.search(r'analyz(e|ing) keywords?', message_lower) or re.search(r'keyword (analysis|recommendations|suggestions)', message_lower):
+            return 'analyze_keywords'
+            
+        if re.search(r'(comprehensive|complete|full) (analysis|account analysis)', message_lower):
+            return 'comprehensive_analysis'
+            
+        if re.search(r'(keyword bid analysis|analyze keyword bids|suggest keyword bids|bid adjustments|bid recommendations)', message_lower):
+            return 'keyword_bid_analysis'
+            
+        if re.search(r'(help|commands|what can you do)', message_lower):
+            return 'help'
+            
+        if re.search(r'schedule', message_lower):
+            return 'schedule'
+            
         return None
     
     def parse_parameters(self, message, command):
@@ -405,14 +444,15 @@ If you don't have enough information to provide a complete answer, ask clarifyin
             self.logger.error(error_message)
             return f"I experienced an error while generating a response: {str(e)}"
 
-    def ensure_data_context(self, days=30, force_refresh=False):
+    def ensure_data_context(self, days=30, force_refresh=False, fetch_keywords=False):
         """
-        Ensure we have recent campaign and keyword data for context.
+        Ensure we have recent campaign data for context.
         If data is too old or missing, refresh it.
         
         Args:
             days (int): Number of days to fetch data for
             force_refresh (bool): If True, force a refresh even if data is recent
+            fetch_keywords (bool): Whether to also fetch keyword data (default: False)
             
         Returns:
             tuple: (campaigns, keywords) with the latest data
@@ -428,9 +468,14 @@ If you don't have enough information to provide a complete answer, ask clarifyin
         
         if needs_refresh:
             try:
-                self.logger.info(f"Refreshing campaign and keyword data for chat context (last {days} days)")
+                self.logger.info(f"Refreshing campaign data for chat context (last {days} days)")
                 self.latest_campaigns = self.ads_api.get_campaign_performance(days_ago=days)
-                self.latest_keywords = self.ads_api.get_keyword_performance(days_ago=days)
+                
+                # Only fetch keywords if explicitly requested
+                if fetch_keywords:
+                    self.logger.info(f"Fetching keyword data (last {days} days) as explicitly requested")
+                    self.latest_keywords = self.ads_api.get_keyword_performance(days_ago=days)
+                
                 self.last_data_refresh = current_time
                 
                 self.logger.info(f"Data refresh successful: {len(self.latest_campaigns)} campaigns, {len(self.latest_keywords) if self.latest_keywords else 0} keywords")
@@ -494,42 +539,52 @@ If you don't have enough information to provide a complete answer, ask clarifyin
                     if not campaigns:
                         campaigns = self.ads_api.get_campaign_performance(days_ago=days)
                         self.latest_campaigns = campaigns
-                        
-                    keywords = self.ads_api.get_keyword_performance(days_ago=days)
-                    self.latest_keywords = keywords
-                    self.last_data_refresh = datetime.now()
                     
-                    response = f"I've fetched data for {len(keywords)} keywords across {len(campaigns)} campaigns from the last {days} days."
-                    
-                    # Add a brief summary of top keywords
-                    if keywords:
-                        # Find keywords with conversions
-                        converting_keywords = [k for k in keywords if k.get('conversions', 0) > 0]
-                        converting_keywords.sort(key=lambda k: k.get('conversions', 0), reverse=True)
+                    try:    
+                        self.logger.info("About to call get_keyword_performance")
                         
-                        if converting_keywords:
-                            response += "\n\nTop converting keywords:\n"
-                            for i, keyword in enumerate(converting_keywords[:3], 1):
-                                response += f"{i}. \"{keyword['keyword_text']}\" - {keyword['conversions']:.1f} conversions, ${keyword['cost']:.2f} spent\n"
+                        keywords = self.ads_api.get_keyword_performance(days_ago=days)
+                        self.latest_keywords = keywords
+                        self.last_data_refresh = datetime.now()
                         
-                        # Find keywords with high spend and no conversions
-                        wasted_keywords = [k for k in keywords if k.get('cost', 0) > 50 and k.get('conversions', 0) < 1]
-                        wasted_keywords.sort(key=lambda k: k.get('cost', 0), reverse=True)
+                        response = f"I've fetched data for {len(keywords)} keywords across {len(campaigns)} campaigns from the last {days} days."
                         
-                        if wasted_keywords:
-                            response += "\n\nKeywords with high spend and no conversions:\n"
-                            for i, keyword in enumerate(wasted_keywords[:3], 1):
-                                response += f"{i}. \"{keyword['keyword_text']}\" - ${keyword['cost']:.2f} spent, {keyword['clicks']} clicks\n"
-                    
-                    response += "\n\nWould you like me to analyze these keywords and provide optimization suggestions?"
-                    
-                    return response, {'command': command, 'result': keywords}
+                        # Add a brief summary of top keywords
+                        if keywords:
+                            # Find keywords with conversions
+                            converting_keywords = [k for k in keywords if k.get('conversions', 0) > 0]
+                            converting_keywords.sort(key=lambda k: k.get('conversions', 0), reverse=True)
+                            
+                            if converting_keywords:
+                                response += "\n\nTop converting keywords:\n"
+                                for i, keyword in enumerate(converting_keywords[:3], 1):
+                                    response += f"{i}. \"{keyword['keyword_text']}\" - {keyword['conversions']:.1f} conversions, ${keyword['cost']:.2f} spent\n"
+                            
+                            # Find keywords with high spend and no conversions
+                            wasted_keywords = [k for k in keywords if k.get('cost', 0) > 50 and k.get('conversions', 0) < 1]
+                            wasted_keywords.sort(key=lambda k: k.get('cost', 0), reverse=True)
+                            
+                            if wasted_keywords:
+                                response += "\n\nKeywords with high spend and no conversions:\n"
+                                for i, keyword in enumerate(wasted_keywords[:3], 1):
+                                    response += f"{i}. \"{keyword['keyword_text']}\" - ${keyword['cost']:.2f} spent, {keyword['clicks']} clicks\n"
+                        
+                        response += "\n\nWould you like me to analyze these keywords and provide optimization suggestions?"
+                        
+                        return response, {'command': command, 'result': keywords}
+                    except Exception as e:
+                        error_message = f"Error fetching keyword data: {str(e)}"
+                        self.logger.exception(error_message)
+                        # Return a helpful error message
+                        response = f"I encountered an error while trying to fetch your keyword data: {str(e)}\n\n"
+                        response += "This could be due to an API error or a deprecated field. I'll work on fixing this issue."
+                        return response, {'command': command, 'error': error_message}
                 
                 elif command == 'analyze_campaigns':
                     days = params.get('days', 30)
                     self.logger.info(f"Analyzing campaign data for last {days} days")
                     # Ensure we have fresh campaign data
-                    campaigns, _ = self.ensure_data_context(days)
+                    campaigns, _ = self.ensure_data_context(days, fetch_keywords=False)
                     
                     if not campaigns:
                         return "I don't have any campaign data to analyze. Let me fetch that for you first.", None
@@ -561,7 +616,7 @@ If you don't have enough information to provide a complete answer, ask clarifyin
                     days = params.get('days', 30)
                     self.logger.info(f"Analyzing keyword data for last {days} days")
                     # Ensure we have fresh data
-                    campaigns, keywords = self.ensure_data_context(days)
+                    campaigns, keywords = self.ensure_data_context(days, fetch_keywords=True)
                     
                     if not campaigns:
                         return "I don't have any campaign data to analyze. Let me fetch that for you first.", None
@@ -569,6 +624,8 @@ If you don't have enough information to provide a complete answer, ask clarifyin
                     if not keywords:
                         # Try to fetch keywords if not available
                         try:
+                            self.logger.info("About to call get_keyword_performance in analyze_keywords")
+                            
                             keywords = self.ads_api.get_keyword_performance(days_ago=days)
                             self.latest_keywords = keywords
                             self.last_data_refresh = datetime.now()
@@ -576,36 +633,41 @@ If you don't have enough information to provide a complete answer, ask clarifyin
                             self.logger.error(f"Error fetching keyword data: {str(e)}")
                             return f"I couldn't fetch keyword data: {str(e)}. Please check your API connection.", None
                     
-                    suggestions = self.optimizer.get_optimization_suggestions(campaigns, keywords)
-                    
-                    if isinstance(suggestions, list):
-                        keyword_suggestions = [s for s in suggestions if s.get('entity_type') == 'keyword']
-                        suggestion_count = len(keyword_suggestions)
+                    try:
+                        suggestions = self.optimizer.get_optimization_suggestions(campaigns, keywords)
                         
-                        response = f"I've completed the keyword analysis for the last {days} days and have {suggestion_count} keyword-specific optimization suggestions for you.\n\n"
+                        if isinstance(suggestions, list):
+                            keyword_suggestions = [s for s in suggestions if s.get('entity_type') == 'keyword']
+                            suggestion_count = len(keyword_suggestions)
+                            
+                            response = f"I've completed the keyword analysis for the last {days} days and have {suggestion_count} keyword-specific optimization suggestions for you.\n\n"
+                            
+                            # Add a brief summary of top 3 suggestions
+                            if suggestion_count > 0:
+                                response += "Here are the top 3 keyword recommendations:\n\n"
+                                for i, sugg in enumerate(keyword_suggestions[:3], 1):
+                                    response += f"{i}. {sugg.get('action_type', 'ACTION')}: {sugg.get('title', 'Untitled')}\n"
+                                    if 'entity_id' in sugg:
+                                        response += f"   • For keyword '{sugg['entity_id']}'\n"
+                                    if 'change' in sugg:
+                                        response += f"   • {sugg['change']}\n"
+                                    response += "\n"
+                            
+                            response += "You can view all the detailed suggestions in the Optimization tab of the application."
+                        else:
+                            response = f"I've analyzed your keywords but couldn't generate specific suggestions: {suggestions}"
                         
-                        # Add a brief summary of top 3 suggestions
-                        if suggestion_count > 0:
-                            response += "Here are the top 3 keyword recommendations:\n\n"
-                            for i, sugg in enumerate(keyword_suggestions[:3], 1):
-                                response += f"{i}. {sugg.get('action_type', 'ACTION')}: {sugg.get('title', 'Untitled')}\n"
-                                if 'entity_id' in sugg:
-                                    response += f"   • For keyword '{sugg['entity_id']}'\n"
-                                if 'change' in sugg:
-                                    response += f"   • {sugg['change']}\n"
-                                response += "\n"
-                        
-                        response += "You can view all the detailed suggestions in the Optimization tab of the application."
-                    else:
-                        response = f"I've analyzed your keywords but couldn't generate specific suggestions: {suggestions}"
-                    
-                    return response, {'command': command, 'result': suggestions}
+                        return response, {'command': command, 'result': suggestions}
+                    except Exception as e:
+                        error_message = f"Error generating keyword optimization suggestions: {str(e)}"
+                        self.logger.exception(error_message)
+                        return f"I encountered an error while analyzing keywords: {str(e)}. Let me fix this issue.", None
                 
                 elif command == 'comprehensive_analysis':
                     days = params.get('days', 30)
                     self.logger.info(f"Running comprehensive analysis for last {days} days")
                     # Force a refresh of both campaigns and keywords
-                    campaigns, keywords = self.ensure_data_context(days, force_refresh=True)
+                    campaigns, keywords = self.ensure_data_context(days, force_refresh=True, fetch_keywords=True)
                     
                     if not campaigns:
                         return "I couldn't fetch campaign data for analysis. Please check your API connection.", None
@@ -646,6 +708,65 @@ If you don't have enough information to provide a complete answer, ask clarifyin
                     
                     return response, {'command': command, 'result': suggestions}
                 
+                elif command == 'keyword_bid_analysis':
+                    days = params.get('days', 30)
+                    self.logger.info(f"Running keyword bid analysis for last {days} days")
+                    # Force a refresh of both campaigns and keywords to ensure we have fresh data
+                    campaigns, keywords = self.ensure_data_context(days, force_refresh=True, fetch_keywords=True)
+                    
+                    if not campaigns:
+                        return "I couldn't fetch campaign data for analysis. Please check your API connection.", None
+                    
+                    if not keywords:
+                        return "I couldn't fetch keyword data. Please check your API connection and ensure you have keywords in your account.", None
+                    
+                    if len(keywords) == 0:
+                        return "I fetched data but found 0 keywords. This might be because you don't have any ENABLED keywords in ENABLED ad groups and campaigns.", None
+                    
+                    self.logger.info(f"Sending {len(keywords)} keywords to Gemini for bid analysis...")
+                    suggestions = self.optimizer.get_optimization_suggestions(campaigns, keywords)
+                    
+                    if isinstance(suggestions, list):
+                        # Filter for bid adjustment suggestions only
+                        bid_suggestions = [s for s in suggestions if s.get('action_type') == 'BID_ADJUSTMENT']
+                        suggestion_count = len(bid_suggestions)
+                        
+                        if suggestion_count > 0:
+                            # Group by adjustment type (increase vs decrease)
+                            increase_bids = [s for s in bid_suggestions if 'increase' in s.get('change', '').lower()]
+                            decrease_bids = [s for s in bid_suggestions if 'decrease' in s.get('change', '').lower()]
+                            
+                            response = f"I've analyzed your keywords and found {suggestion_count} bid adjustment opportunities:\n\n"
+                            response += f"• {len(increase_bids)} keywords that could benefit from bid increases\n"
+                            response += f"• {len(decrease_bids)} keywords that could benefit from bid decreases\n\n"
+                            
+                            # Show top recommendations of each type
+                            if increase_bids:
+                                response += "**Top keywords for bid increases:**\n\n"
+                                for i, sugg in enumerate(increase_bids[:3], 1):
+                                    keyword = sugg.get('entity_id', 'unknown keyword')
+                                    change = sugg.get('change', 'unknown change')
+                                    rationale = sugg.get('rationale', 'based on performance data')
+                                    response += f"{i}. \"{keyword}\" - {change}\n"
+                                    response += f"   • Rationale: {rationale}\n\n"
+                            
+                            if decrease_bids:
+                                response += "**Top keywords for bid decreases:**\n\n"
+                                for i, sugg in enumerate(decrease_bids[:3], 1):
+                                    keyword = sugg.get('entity_id', 'unknown keyword')
+                                    change = sugg.get('change', 'unknown change')
+                                    rationale = sugg.get('rationale', 'based on performance data')
+                                    response += f"{i}. \"{keyword}\" - {change}\n"
+                                    response += f"   • Rationale: {rationale}\n\n"
+                            
+                            response += "You can view all the detailed bid suggestions in the Suggestions tab. Would you like me to automatically apply these bid changes?"
+                        else:
+                            response = "I analyzed your keywords but didn't find any specific bid adjustment opportunities at this time. This could be because your keywords already have optimal bids, or there isn't enough performance data to make confident recommendations."
+                    else:
+                        response = f"I analyzed your keywords but couldn't generate specific bid suggestions: {suggestions}"
+                    
+                    return response, {'command': command, 'result': suggestions}
+                
                 elif command == 'help':
                     help_text = """
 I can help you optimize your Google Ads campaigns. Here are commands you can use:
@@ -654,6 +775,7 @@ I can help you optimize your Google Ads campaigns. Here are commands you can use
 • **Keyword Data**: "Fetch keyword data for the last 30 days"
 • **Campaign Analysis**: "Analyze my campaigns and give optimization suggestions"
 • **Keyword Analysis**: "Analyze my keywords and provide bid suggestions"
+• **Bid Analysis**: "Run keyword bid analysis" or "Suggest keyword bid adjustments"
 • **Full Account Analysis**: "Run a comprehensive account analysis"
 • **Custom Query**: "Find campaigns with low CTR" or "Which keywords need bid adjustments?"
 • **Scheduler**: "Schedule daily campaign analysis at 9am"
@@ -674,7 +796,7 @@ You can also ask me questions about PPC strategy, ad optimization, or anything r
         # For non-command messages, use GPT to generate a response
         try:
             # Ensure we have data context - auto-refresh if older than threshold
-            campaigns, keywords = self.ensure_data_context()
+            campaigns, keywords = self.ensure_data_context(fetch_keywords=False)
             data_summary = self.get_data_summary(campaigns, keywords)
             
             # Create messages including chat history for context
@@ -704,14 +826,18 @@ to get more data or analytical insights.
                 {"role": "system", "content": system_message}
             ] + messages
             
-            response = self.openai_client.chat.completions.create(
-                model="gpt-4",
-                messages=messages,
-                max_tokens=1200,
-                temperature=0.3  # Lower temperature for more factual, data-driven responses
-            )
-            
-            response_text = response.choices[0].message.content
+            # Combine messages into a single prompt for Gemini
+            full_prompt = "\n".join([f"{m['role'].upper()}: {m['content']}" for m in messages])
+
+            # Call Gemini API
+            try:
+                # Use the optimizer's generate_content method instead of direct model access
+                response_text = self.optimizer.generate_content(full_prompt)
+                self.logger.info("Successfully generated chat response using optimizer.generate_content")
+            except Exception as e:
+                self.logger.error(f"Error generating chat response: {str(e)}")
+                response_text = f"I encountered an error: {str(e)}"
+
             self.add_message('assistant', response_text)
             return response_text, None
             

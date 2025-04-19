@@ -32,6 +32,9 @@ class TestGoogleAdsAgentComprehensive(unittest.TestCase):
             },
             'openai': {
                 'api_key': 'test_api_key'
+            },
+            'google_ai': {
+                'api_key': 'test_google_ai_key'
             }
         }
         
@@ -356,7 +359,7 @@ class TestGoogleAdsAgentComprehensive(unittest.TestCase):
         keywords = self.ads_api.get_keyword_performance(days_ago=30)
         
         # Create a real optimizer (not the mock) to test its formatting
-        real_optimizer = AdsOptimizer(self.config['openai'])
+        real_optimizer = AdsOptimizer(self.config['google_ai'])
         
         # Test campaign data formatting
         campaign_data_formatted = real_optimizer.format_campaign_data(campaigns)
@@ -471,7 +474,7 @@ class TestGoogleAdsAgentComprehensive(unittest.TestCase):
         empty_keywords = []
         
         # Creating actual optimizer for this test
-        real_optimizer = AdsOptimizer(self.config['openai'])
+        real_optimizer = AdsOptimizer(self.config['google_ai'])
         
         # Test optimizer response with empty campaigns
         campaign_data_formatted = real_optimizer.format_campaign_data(empty_campaigns)

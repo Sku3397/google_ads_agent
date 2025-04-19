@@ -1,86 +1,16 @@
 {
-  "aa3c99c7-99f7-4838-a0d3-c24a46188dd9": {
-    "task_id": "aa3c99c7-99f7-4838-a0d3-c24a46188dd9",
-    "name": "\ud83d\udcca Fetch Campaign Data (days=30)",
-    "schedule_type": "daily",
-    "args": [],
-    "kwargs": {
-      "days": 30
-    },
-    "hour": 9,
-    "minute": 0,
-    "day_of_week": null,
-    "last_run": null,
-    "next_run": "2025-04-14T09:00:00",
-    "created_at": "2025-04-13T22:45:05.019764",
-    "status": "scheduled",
-    "error": null
-  },
-  "6093cc8a-d1e5-45d7-9e1e-acbb38dbc628": {
-    "task_id": "6093cc8a-d1e5-45d7-9e1e-acbb38dbc628",
-    "name": "\ud83d\udd0d Analyze & Optimize (days=30)",
-    "schedule_type": "daily",
-    "args": [],
-    "kwargs": {
-      "days": 30
-    },
-    "hour": 9,
-    "minute": 0,
-    "day_of_week": null,
-    "last_run": null,
-    "next_run": "2025-04-14T09:00:00",
-    "created_at": "2025-04-13T22:45:13.170637",
-    "status": "scheduled",
-    "error": null
-  },
-  "665baa1e-7438-411a-8536-8f8174a3ce2c": {
-    "task_id": "665baa1e-7438-411a-8536-8f8174a3ce2c",
-    "name": "\ud83d\udd24 Fetch Keyword Data (days=30, campaign_id=20783614479)",
-    "schedule_type": "daily",
-    "args": [],
-    "kwargs": {
-      "days": 30,
-      "campaign_id": 20783614479
-    },
-    "hour": 9,
-    "minute": 0,
-    "day_of_week": null,
-    "last_run": null,
-    "next_run": "2025-04-14T09:00:00",
-    "created_at": "2025-04-13T22:45:17.510736",
-    "status": "scheduled",
-    "error": null
-  },
-  "cbea6b6e-9969-42f4-a3d5-fd000f9c3a17": {
-    "task_id": "cbea6b6e-9969-42f4-a3d5-fd000f9c3a17",
-    "name": "\u2705 Apply Optimization Suggestions",
-    "schedule_type": "daily",
+  "c7e34bd7-c1cb-4616-829e-9852eaaa8d3c": {
+    "task_id": "c7e34bd7-c1cb-4616-829e-9852eaaa8d3c",
+    "name": "\ud83d\udd24 Fetch Keyword Data (days=90)",
+    "schedule_type": "once",
     "args": [],
     "kwargs": {},
     "hour": 9,
     "minute": 0,
     "day_of_week": null,
     "last_run": null,
-    "next_run": "2025-04-14T09:00:00",
-    "created_at": "2025-04-13T22:45:37.524019",
-    "status": "scheduled",
-    "error": null
-  },
-  "0fc1c386-865f-4b2c-9080-14d4b3b26095": {
-    "task_id": "0fc1c386-865f-4b2c-9080-14d4b3b26095",
-    "name": "\ud83d\udd24 Fetch Keyword Data (days=30, campaign_id=20783614479)",
-    "schedule_type": "daily",
-    "args": [],
-    "kwargs": {
-      "days": 30,
-      "campaign_id": 20783614479
-    },
-    "hour": 9,
-    "minute": 0,
-    "day_of_week": null,
-    "last_run": null,
-    "next_run": "2025-04-14T09:00:00",
-    "created_at": "2025-04-13T22:45:48.202755",
+    "next_run": "2025-04-18T09:00:00",
+    "created_at": "2025-04-18T00:05:42.234225",
     "status": "scheduled",
     "error": null
   }

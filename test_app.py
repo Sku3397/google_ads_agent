@@ -90,34 +90,26 @@ def test_ads_api_date_ranges():
 def test_optimizer():
     """Test the optimizer module with basic campaigns"""
     try:
-        # Create mock config
+        # Create mock config suitable for google_ai
         mock_config = {
-            'api_key': 'test'
+            # Only api_key is needed by the current __init__
+            'api_key': 'mock_google_api_key'
         }
-        
+
         # Create optimizer instance
         optimizer = AdsOptimizer(mock_config)
-        
-        # Create mock campaign data
+
+        # Create mock campaign data (minimal fields needed)
         mock_campaigns = [
             {
                 'id': '123456789',
                 'name': 'Test Campaign 1',
                 'status': 'ENABLED',
-                'budget': 100.0,
-                'clicks': 1000,
-                'impressions': 10000,
-                'ctr': 10.0,
-                'average_cpc': 0.5,
-                'conversions': 50,
-                'cost': 500.0,
-                'conversion_rate': 5.0,
-                'cost_per_conversion': 10.0,
                 'days': 30
             }
         ]
-        
-        # Create mock keyword data
+
+        # Create mock keyword data (reduced fields)
         mock_keywords = [
             {
                 'campaign_id': '123456789',
@@ -127,45 +119,53 @@ def test_optimizer():
                 'keyword_text': 'test keyword',
                 'match_type': 'EXACT',
                 'status': 'ENABLED',
+                'system_serving_status': 'ELIGIBLE',
                 'quality_score': 7,
                 'current_bid': 0.5,
                 'clicks': 100,
                 'impressions': 1000,
-                'ctr': 10.0,
                 'average_cpc': 0.5,
                 'conversions': 5,
                 'cost': 50.0,
-                'conversion_rate': 5.0,
-                'cost_per_conversion': 10.0,
+                'top_impression_pct': 0.6,
+                'search_impression_share': 0.7,
+                'search_top_impression_share': 0.5,
                 'days': 30
             }
         ]
-        
+
         # Test data formatting
         campaign_data = optimizer.format_campaign_data(mock_campaigns)
         keyword_data = optimizer.format_keyword_data(mock_keywords)
-        
+
         logger.info(f"Campaign data formatting: {'PASSED ✅' if campaign_data else 'FAILED ❌'}")
         logger.info(f"Keyword data formatting: {'PASSED ✅' if keyword_data else 'FAILED ❌'}")
-        
-        # Test with only campaign data
-        # Note: We're not actually calling the OpenAI API in this test
-        # We're just testing that the function doesn't throw an error
-        try:
-            result = optimizer.get_optimization_suggestions(mock_campaigns)
-            logger.info("Optimizer with campaign data only: Structure test PASSED ✅")
-        except Exception as e:
-            logger.error(f"Optimizer with campaign data only failed: {str(e)}")
-        
-        # Test with both campaign and keyword data
-        try:
-            result = optimizer.get_optimization_suggestions(mock_campaigns, mock_keywords)
-            logger.info("Optimizer with campaign and keyword data: Structure test PASSED ✅")
-        except Exception as e:
-            logger.error(f"Optimizer with campaign and keyword data failed: {str(e)}")
-            
+
+        # Test suggestion parsing (using a sample Gemini-like output format)
+        # NOTE: This is a placeholder. A real test would mock the Gemini response
+        # and verify the parser handles it correctly.
+        sample_suggestions_text = """
+        1. [BID_ADJUSTMENT] Increase bid for test keyword
+        - Entity: [KEYWORD] ID: "test keyword" [EXACT]
+        - Ad Group: Test Ad Group
+        - Current Value: Bid $0.50, CPA $10.00, Conv Rate 5.00%, QS 7/10
+        - Change: Increase bid from $0.50 to $0.60
+        - Rationale: Good CPA and Conv Rate indicate potential for more conversions with higher bid.
+        """
+
+        parsed_suggestions = optimizer.parse_suggestions(sample_suggestions_text, mock_campaigns, mock_keywords)
+        logger.info(f"Suggestion parsing: {'PASSED ✅' if parsed_suggestions else 'FAILED ❌'}")
+        if parsed_suggestions:
+            logger.info(f"Parsed suggestion: {parsed_suggestions[0]}")
+
+        # Note: Calling get_optimization_suggestions would require mocking the actual Gemini API call
+        # logger.info("Testing suggestion generation (requires mocking Gemini API)...")
+        # suggestions = optimizer.get_optimization_suggestions(mock_campaigns, mock_keywords)
+        # logger.info(f"Suggestion generation: {'PASSED ✅' if suggestions else 'FAILED ❌'}")
+
     except Exception as e:
-        logger.error(f"Optimizer test failed: {str(e)}")
+        logger.exception(f"Optimizer test failed: {e}")
+        raise
 
 def test_chat_interface():
     """Test the chat interface functionality"""

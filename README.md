@@ -1,186 +1,161 @@
-# Google Ads Optimization Agent
+# Google Ads Autonomous Management System
 
-An intelligent agent that connects to the Google Ads API, fetches campaign data, and uses GPT-4 to provide optimization suggestions.
+A comprehensive, autonomous Google Ads management system that performs everything a senior Google Ads professional would do, including campaign auditing, keyword optimization, bid management, and performance monitoring.
 
-## Features
+## Architecture
 
-- Connects to Google Ads API to fetch campaign performance metrics
-- Analyzes campaign data using OpenAI's GPT-4
-- Provides actionable optimization suggestions
-- Supports scheduled runs (daily or weekly)
-- Modern Streamlit GUI with interactive dashboard
-- Chat interface for natural language interaction
-- Advanced error reporting and logging
-- Beautiful data visualizations
+This system uses a modular service-based architecture where each aspect of Google Ads management is handled by a dedicated service. The core services include:
+
+1. **AuditService** - Analyzes campaign and account structure, identifies inefficiencies and opportunities for improvement
+2. **KeywordService** - Manages keywords, discovers new high-intent keywords, and optimizes existing ones
+3. **NegativeKeywordService** - Identifies and manages negative keywords to improve targeting precision
+4. **BidService** - Handles bid optimization using various strategies (target CPA, target ROAS)
+5. **CreativeService** - Generates and tests ad copy, manages ad rotation and performance
+6. **QualityScoreService** - Monitors and improves Quality Score metrics
+7. **AudienceService** - Manages audience targeting and bid modifiers
+8. **ReportingService** - Generates performance reports and insights
+9. **AnomalyDetectionService** - Detects performance anomalies and triggers alerts
+10. **SchedulerService** - Orchestrates tasks and schedules optimizations
+11. **DataPersistenceService** - Manages data storage and retrieval
 
 ## Installation
 
-1. Clone this repository
-2. Install the required dependencies:
+1. Clone the repository:
+```bash
+git clone https://github.com/yourusername/google_ads_agent.git
+cd google_ads_agent
+```
 
+2. Install required dependencies:
 ```bash
 pip install -r requirements.txt
 ```
 
-3. Copy the `.env.template` file to `.env` and fill in your API credentials:
+3. Set up your credentials:
+- Copy `.env.template` to `.env`
+- Fill in your Google Ads API credentials and Google AI API key
 
-```bash
-cp .env.template .env
 ```
+# Google Ads API credentials
+GOOGLE_ADS_CLIENT_ID=your_client_id
+GOOGLE_ADS_CLIENT_SECRET=your_client_secret
+GOOGLE_ADS_DEVELOPER_TOKEN=your_developer_token
+GOOGLE_ADS_REFRESH_TOKEN=your_refresh_token
+GOOGLE_ADS_LOGIN_CUSTOMER_ID=your_login_customer_id
+GOOGLE_ADS_CUSTOMER_ID=your_customer_id
 
-## Configuration
-
-You need to set up the following environment variables in your `.env` file:
-
-### Google Ads API Credentials
-- `GOOGLE_ADS_CLIENT_ID`: Your Google Ads API client ID
-- `GOOGLE_ADS_CLIENT_SECRET`: Your Google Ads API client secret
-- `GOOGLE_ADS_DEVELOPER_TOKEN`: Your Google Ads API developer token
-- `GOOGLE_ADS_REFRESH_TOKEN`: Your Google Ads API refresh token
-- `GOOGLE_ADS_LOGIN_CUSTOMER_ID`: Your Google Ads login customer ID
-- `GOOGLE_ADS_CUSTOMER_ID`: The customer ID you want to analyze
-
-### OpenAI API Credentials
-- `OPENAI_API_KEY`: Your OpenAI API key
+# Google AI API key for Gemini
+GOOGLE_AI_API_KEY=your_google_ai_api_key
+```
 
 ## Usage
 
-### GUI Application (Recommended)
+### Command Line Interface
 
-Run the Streamlit web application:
+The main entry point is `ads_agent.py`, which provides a command-line interface for different actions:
+
+```bash
+# Run a comprehensive account audit
+python ads_agent.py --action audit --days 30
+
+# Discover new keywords for a specific campaign
+python ads_agent.py --action keywords --campaign 123456789
+
+# Analyze keyword performance
+python ads_agent.py --action performance --days 90
+
+# Run scheduled optimization
+python ads_agent.py --action optimize
+```
+
+### Streamlit Web Interface
+
+The system also includes a Streamlit web interface for more interactive management:
 
 ```bash
 streamlit run app.py
 ```
 
-Or use the provided batch file on Windows:
+This will launch a web-based interface where you can:
+- View campaign and keyword performance
+- Run audits and analyses
+- Schedule optimizations
+- Apply recommendations
+- Generate reports
 
-```bash
-run.bat
+## Scheduling Optimizations
+
+### Configuration
+
+Schedule settings can be modified in the `config.py` file or through the web interface.
+
+```python
+# Default scheduler settings
+SCHEDULER_SETTINGS = {
+    "audit_frequency": "daily",      # hourly, daily, weekly
+    "audit_hour": 4,                 # Hour to run (0-23)
+    "audit_minute": 0,               # Minute to run (0-59)
+    "bid_optimization_frequency": "hourly",
+    "keyword_optimization_frequency": "daily",
+    "reporting_frequency": "weekly",
+    "reporting_day": "monday"        # For weekly schedules
+}
 ```
 
-The GUI provides the following sections:
-- **Dashboard**: Overview of campaign performance with key metrics
-- **Campaign Analysis**: Detailed analysis and visualization of campaign data
-- **Optimization**: GPT-4 powered optimization suggestions
-- **Chat Assistant**: Natural language interface to interact with the agent
-- **Scheduler**: Configure automated analysis on a schedule
-- **System Logs**: View detailed logs and error reports
+### Running as a Service
 
-### Command-line Interface (Legacy)
-
-For command-line usage:
-
-Run a one-time analysis for the last 30 days:
+For continuous operation, you can run the agent as a background service:
 
 ```bash
-python main.py
+python run_agent.py --mode service --frequency daily --hour 4 --minute 0
 ```
 
-Run a one-time analysis for a custom number of days:
+This will run the optimizations daily at 4:00 AM.
+
+## Reading Reports and Alerts
+
+### Reports Location
+
+Reports are stored in the `reports/` directory, organized by type:
+- `reports/audit/` - Account structure audits
+- `reports/keywords/` - Keyword analysis and suggestions
+- `reports/performance/` - Performance reports
+- `reports/anomalies/` - Detected anomalies
+
+### Alert Configuration
+
+Alerts can be configured in the `.env` file:
+
+```
+# Alert settings
+ENABLE_EMAIL_ALERTS=true
+ALERT_EMAIL=your_email@example.com
+ENABLE_SLACK_ALERTS=false
+SLACK_WEBHOOK_URL=your_slack_webhook_url
+```
+
+## Development
+
+### Adding a New Service
+
+To add a new service:
+
+1. Create a new directory under `services/`
+2. Implement the service class inheriting from `BaseService`
+3. Add the service to `services/__init__.py`
+4. Initialize the service in `AdsAgent._initialize_services()`
+
+### Running Tests
 
 ```bash
-python main.py --days 60
+pytest
 ```
 
-Schedule a daily analysis at 9:00 AM:
+## License
 
-```bash
-python main.py --schedule
-```
+This project is licensed under the MIT License - see the LICENSE file for details.
 
-Schedule a daily analysis at a custom time:
+## Acknowledgments
 
-```bash
-python main.py --schedule --hour 14 --minute 30
-```
-
-## Testing
-
-The application includes comprehensive test suites to ensure functionality and stability:
-
-### Running All Tests
-
-Use the provided batch file on Windows:
-
-```bash
-test_all.bat
-```
-
-Or run individual test files:
-
-```bash
-py test_comprehensive.py   # Comprehensive functionality tests
-py test_logger.py          # Logger tests
-py test_ads_api.py         # Google Ads API tests
-py test_app.py             # Main application tests
-py test_command_pattern.py # Command pattern tests
-py test_command_direct.py  # Direct command tests
-```
-
-### Test Coverage
-
-- **test_comprehensive.py**: End-to-end testing of all major components
-- **test_logger.py**: Tests for UTF-8 encoding and proper logging
-- **test_ads_api.py**: Tests for Google Ads API integration
-- **test_app.py**: Tests for the main application functionality
-- **test_command_pattern.py**: Tests for the command pattern implementation
-- **test_command_direct.py**: Direct command execution tests
-
-## Troubleshooting
-
-### Python Command Issues
-
-If you encounter "Python was not found" errors, try using the `py` command instead:
-
-```bash
-py app.py
-```
-
-Or for Python 3 specifically:
-
-```bash
-python3 app.py
-```
-
-### Missing Packages
-
-If you encounter missing package errors, install the requirements:
-
-```bash
-py -m pip install -r requirements.txt
-```
-
-### API Connection Issues
-
-Ensure your `.env` file contains valid API credentials. Check the logs directory for detailed error messages.
-
-## Project Structure
-
-- `app.py`: Main Streamlit GUI application
-- `main.py`: Legacy CLI interface
-- `ads_api.py`: Google Ads API connection
-- `optimizer.py`: GPT-4 integration for analysis
-- `scheduler.py`: Automation with the schedule library
-- `config.py`: Configuration loading
-- `logger.py`: Enhanced error reporting and logging
-- `chat_interface.py`: Natural language chat interface
-- `.env`: API keys and secrets
-
-## Chat Commands
-
-The chat assistant supports the following command types:
-- **Fetch Data**: "Get campaign data for the last 14 days"
-- **Analyze**: "Analyze my campaigns and give optimization suggestions"
-- **Custom Query**: "Find campaigns with low CTR"
-- **Schedule**: "Schedule daily optimization at 2:30pm"
-- **Help**: "Show available commands"
-
-## Future Enhancements
-
-Future versions will support:
-- Automatic campaign changes through the API
-- Real-time notification system
-- Integration with other advertising platforms
-- Machine learning-based suggestions to complement GPT-4
-- Multi-user support with authentication 
+- Google Ads API
+- Google Gemini API for AI-powered optimization 
