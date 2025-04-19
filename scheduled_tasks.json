@@ -13,5 +13,112 @@
     "created_at": "2025-04-18T00:05:42.234225",
     "status": "scheduled",
     "error": null
+  },
+  "d8f45ae9-b2e7-48d9-a3c1-e9d72bf5a910": {
+    "task_id": "d8f45ae9-b2e7-48d9-a3c1-e9d72bf5a910",
+    "name": "🧠 Meta-Learning Strategy Analysis",
+    "schedule_type": "daily",
+    "args": ["analyze_strategies"],
+    "kwargs": {},
+    "hour": 2,
+    "minute": 30,
+    "day_of_week": null,
+    "last_run": null,
+    "next_run": "2025-04-19T02:30:00",
+    "created_at": "2025-04-18T02:20:10.123456",
+    "status": "scheduled",
+    "error": null
+  },
+  "7a92e3f1-b8c4-4e8d-9d6a-1f5e7c9b8d3a": {
+    "task_id": "7a92e3f1-b8c4-4e8d-9d6a-1f5e7c9b8d3a",
+    "name": "📊 Weekly Performance Forecast",
+    "schedule_type": "weekly",
+    "args": ["forecast_metrics"],
+    "kwargs": {
+      "days": 30,
+      "metrics": ["clicks,impressions,conversions,cost"]
+    },
+    "hour": 8,
+    "minute": 0,
+    "day_of_week": "monday",
+    "last_run": null,
+    "next_run": "2025-04-22T08:00:00",
+    "created_at": "2025-04-19T02:28:35.789012",
+    "status": "scheduled",
+    "error": null
+  },
+  "5c3e7d9a-f12b-4e8d-a67b-2d98c4f5e1d2": {
+    "task_id": "5c3e7d9a-f12b-4e8d-a67b-2d98c4f5e1d2",
+    "name": "🔍 Monthly Search Trend Analysis",
+    "schedule_type": "monthly",
+    "args": ["forecast_trends"],
+    "kwargs": {},
+    "hour": 9,
+    "minute": 30,
+    "day": 1,
+    "last_run": null,
+    "next_run": "2025-05-01T09:30:00",
+    "created_at": "2025-04-19T02:28:35.789012",
+    "status": "scheduled",
+    "error": null
+  },
+  "learn_from_expert_feedback": {
+    "task_id": "learn_from_expert_feedback",
+    "name": "Learn from expert feedback",
+    "schedule_type": "daily",
+    "hour": 3,
+    "minute": 30,
+    "day_of_week": null,
+    "function": "agent.learn_from_expert_feedback",
+    "args": [],
+    "kwargs": {},
+    "last_run": null,
+    "next_run": null,
+    "created_at": "2023-07-01T00:00:00.000Z",
+    "status": "scheduled"
+  },
+  "8d71ef9b-a34c-4f92-bc5d-e6a9d87c1234": {
+    "task_id": "8d71ef9b-a34c-4f92-bc5d-e6a9d87c1234",
+    "name": "🔎 Weekly Organic Ranking Tracker",
+    "schedule_type": "weekly",
+    "args": ["track_keyword_rankings"],
+    "kwargs": {
+      "keywords": [
+        "google ads automation",
+        "ppc management",
+        "google ads management",
+        "google ads bidding"
+      ],
+      "domain": "yourdomain.com"
+    },
+    "hour": 7,
+    "minute": 0,
+    "day_of_week": "monday",
+    "last_run": null,
+    "next_run": "2025-04-22T07:00:00",
+    "created_at": "2025-04-18T10:15:22.345678",
+    "status": "scheduled",
+    "error": null
+  },
+  "9e82fa6c-b25d-4a81-9c3e-f7b5d98e5678": {
+    "task_id": "9e82fa6c-b25d-4a81-9c3e-f7b5d98e5678",
+    "name": "👀 Daily Competitor Ad Analysis",
+    "schedule_type": "daily",
+    "args": ["analyze_serp_competitors"],
+    "kwargs": {
+      "queries": [
+        "google ads management",
+        "ppc software",
+        "bid automation"
+      ]
+    },
+    "hour": 6,
+    "minute": 30,
+    "day_of_week": null,
+    "last_run": null,
+    "next_run": "2025-04-19T06:30:00",
+    "created_at": "2025-04-18T11:30:45.678901",
+    "status": "scheduled",
+    "error": null
   }
 }

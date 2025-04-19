@@ -1,0 +1,18 @@
+# Google Ads Agent CODEOWNERS
+# Each line is a file pattern followed by one or more owners.
+
+# These owners will be the default owners for everything in the repo
+*       @project-admin
+
+# Service specific owners
+/services/ad_service/        @ads-team-lead
+/services/campaign_service/   @campaign-team-lead
+/services/api/               @api-team-lead
+
+# Infrastructure related files
+*.yml                        @devops-team
+/deploy/                     @devops-team
+/.cursorci/                  @devops-team
+
+# Tests
+/tests/                      @qa-team 

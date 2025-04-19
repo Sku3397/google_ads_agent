@@ -7,6 +7,7 @@ optimization, and monitoring.
 """
 
 # Allow services to be imported directly from the package
+from services.base_service import BaseService
 from services.audit_service import AuditService
 from services.keyword_service import KeywordService
 from services.negative_keyword_service import NegativeKeywordService
@@ -16,11 +17,21 @@ from services.quality_score_service import QualityScoreService
 from services.audience_service import AudienceService
 from services.reporting_service import ReportingService
 from services.anomaly_detection_service import AnomalyDetectionService
-from services.scheduler_service import SchedulerService
+from services.scheduler_service.scheduler_service import SchedulerService
 from services.data_persistence_service import DataPersistenceService
 from services.reinforcement_learning_service import ReinforcementLearningService
+from services.bandit_service import BanditService
+from services.causal_inference_service import CausalInferenceService
+from services.generative_content_service import GenerativeContentService
+from services.data_visualization_service import DataVisualizationService
+from services.experimentation_service import ExperimentationService
+from services.meta_learning_service import MetaLearningService
+from services.forecasting_service import ForecastingService
+from services.personalization_service import PersonalizationService
+from services.serp_scraper_service import SERPScraperService
 
 __all__ = [
+    'BaseService',
     'AuditService',
     'KeywordService',
     'NegativeKeywordService',
@@ -32,5 +43,14 @@ __all__ = [
     'AnomalyDetectionService',
     'SchedulerService',
     'DataPersistenceService',
-    'ReinforcementLearningService'
+    'ReinforcementLearningService',
+    'BanditService',
+    'CausalInferenceService',
+    'GenerativeContentService',
+    'DataVisualizationService',
+    'ExperimentationService',
+    'MetaLearningService',
+    'ForecastingService',
+    'PersonalizationService',
+    'SERPScraperService'
 ] 

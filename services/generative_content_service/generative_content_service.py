@@ -404,10 +404,10 @@ class GenerativeContentService(BaseService):
             benefit = benefits[i % len(benefits)]
             price = prices[i % len(prices)]
             
-            headline = template.replace("{product}", product_name[:15])
-                              .replace("{keyword}", keyword[:15])
-                              .replace("{benefit}", benefit)
-                              .replace("{price}", price)
+            headline = (template.replace("{product}", product_name[:15])
+                       .replace("{keyword}", keyword[:15])
+                       .replace("{benefit}", benefit)
+                       .replace("{price}", price))
                               
             # Ensure headline is within character limit
             if len(headline) > self.max_headline_length:
@@ -446,12 +446,12 @@ class GenerativeContentService(BaseService):
             benefit = benefits[i % len(benefits)] if benefits else "Great value"
             offer = offers[i % len(offers)]
             
-            description = template.replace("{product}", product_name)
-                                 .replace("{keyword}", keyword)
-                                 .replace("{feature}", feature)
-                                 .replace("{benefit}", benefit)
-                                 .replace("{offer}", offer)
-                                 
+            description = (template.replace("{product}", product_name)
+                          .replace("{keyword}", keyword)
+                          .replace("{feature}", feature)
+                          .replace("{benefit}", benefit)
+                          .replace("{offer}", offer))
+                                  
             # Ensure description is within character limit
             if len(description) > self.max_description_length:
                 description = description[:self.max_description_length - 3] + "..."
