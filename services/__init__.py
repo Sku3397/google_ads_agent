@@ -18,6 +18,7 @@ from services.reporting_service import ReportingService
 from services.anomaly_detection_service import AnomalyDetectionService
 from services.scheduler_service import SchedulerService
 from services.data_persistence_service import DataPersistenceService
+from services.reinforcement_learning_service import ReinforcementLearningService
 
 __all__ = [
     'AuditService',
@@ -30,5 +31,6 @@ __all__ = [
     'ReportingService',
     'AnomalyDetectionService',
     'SchedulerService',
-    'DataPersistenceService'
+    'DataPersistenceService',
+    'ReinforcementLearningService'
 ] 

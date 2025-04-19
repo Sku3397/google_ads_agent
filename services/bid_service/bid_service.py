@@ -15,15 +15,26 @@ import os
 import json
 
 from services.base_service import BaseService
+from google.ads.googleads.client import GoogleAdsClient
+from google.ads.googleads.errors import GoogleAdsException
+
+logger = logging.getLogger(__name__)
 
 class BidService(BaseService):
     """
     Bid Service for managing and optimizing keyword and campaign bids.
     """
     
-    def __init__(self, *args, **kwargs):
-        """Initialize the Bid Service"""
-        super().__init__(*args, **kwargs)
+    def __init__(self, client: GoogleAdsClient, customer_id: str):
+        """
+        Initialize the bid service.
+        
+        Args:
+            client: The Google Ads API client
+            customer_id: The Google Ads customer ID
+        """
+        super().__init__(client, customer_id)
+        self.ad_group_criterion_service = self.client.get_service("AdGroupCriterionService")
         
         # Default thresholds and settings
         self.min_data_points = 50             # Minimum data points required for confidence
@@ -663,4 +674,112 @@ class BidService(BaseService):
         # In a real implementation, you'd apply caps and minimums
         safe_recommendations = recommendations
         
-        return safe_recommendations 
+        return safe_recommendations
+    
+    def adjust_keyword_bids(self, adjustments: Dict[str, float]) -> Dict[str, Any]:
+        """
+        Adjust bids for specified keywords based on simulation results or optimization suggestions.
+        
+        Args:
+            adjustments: Dictionary mapping keyword criterion IDs to new bid amounts (in currency units, not micros)
+            
+        Returns:
+            Dictionary containing results of bid adjustments for each keyword
+        """
+        results = {}
+        operations = []
+        
+        try:
+            for criterion_id, new_bid in adjustments.items():
+                # Convert bid to micros
+                bid_micros = int(new_bid * 1000000)
+                
+                # Create operation for bid adjustment
+                operation = self.client.get_type("AdGroupCriterionOperation")
+                criterion = operation.update
+                criterion.resource_name = f"customers/{self.customer_id}/adGroupCriteria/{criterion_id}"
+                criterion.cpc_bid_micros = bid_micros
+                operation.update_mask.paths.append("cpc_bid_micros")
+                
+                operations.append(operation)
+                results[criterion_id] = {
+                    "new_bid": new_bid,
+                    "status": "pending"
+                }
+            
+            if operations:
+                response = self.ad_group_criterion_service.mutate_ad_group_criteria(
+                    customer_id=self.customer_id, operations=operations
+                )
+                
+                # Process response
+                for i, result in enumerate(response.results):
+                    criterion_id = operations[i].update.resource_name.split("/")[-1]
+                    results[criterion_id]["status"] = "success"
+                    results[criterion_id]["message"] = f"Bid updated to {results[criterion_id]['new_bid']}"
+            
+            return results
+            
+        except GoogleAdsException as ex:
+            error_message = f"Google Ads API error: Request with ID '{ex.request_id}' failed with status '{ex.error.code().name}'"
+            if ex.failure:
+                error_message += f": {ex.failure.errors[0].message}"
+            logger.error(error_message)
+            
+            # Mark all pending adjustments as failed
+            for criterion_id in results:
+                if results[criterion_id]["status"] == "pending":
+                    results[criterion_id]["status"] = "failed"
+                    results[criterion_id]["message"] = error_message
+            
+            return results
+            
+        except Exception as e:
+            error_message = f"Error adjusting keyword bids: {str(e)}"
+            logger.error(error_message)
+            
+            # Mark all pending adjustments as failed
+            for criterion_id in results:
+                if results[criterion_id]["status"] == "pending":
+                    results[criterion_id]["status"] = "failed"
+                    results[criterion_id]["message"] = error_message
+            
+            return results
+    
+    def get_current_bids(self, criterion_ids: List[str]) -> Dict[str, Optional[float]]:
+        """
+        Get current bid amounts for specified keywords.
+        
+        Args:
+            criterion_ids: List of keyword criterion IDs to fetch bids for
+            
+        Returns:
+            Dictionary mapping criterion IDs to current bid amounts (in currency units, not micros)
+        """
+        results = {cid: None for cid in criterion_ids}
+        
+        try:
+            ga_service = self.client.get_service("GoogleAdsService")
+            
+            # Create a query for all IDs at once
+            ids_str = ",".join(criterion_ids)
+            query = f"""
+                SELECT
+                    ad_group_criterion.criterion_id,
+                    ad_group_criterion.effective_cpc_bid_micros
+                FROM keyword_view
+                WHERE ad_group_criterion.criterion_id IN ({ids_str})
+            """
+            
+            response = ga_service.search(customer_id=self.customer_id, query=query)
+            
+            for row in response:
+                cid = str(row.ad_group_criterion.criterion_id)
+                bid_micros = row.ad_group_criterion.effective_cpc_bid_micros
+                results[cid] = bid_micros / 1000000 if bid_micros else 0.0
+            
+            return results
+            
+        except Exception as e:
+            logger.error(f"Error fetching current bids: {str(e)}")
+            return results 

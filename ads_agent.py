@@ -32,6 +32,9 @@ from services.reporting_service import ReportingService
 from services.anomaly_detection_service import AnomalyDetectionService
 from services.scheduler_service import SchedulerService
 from services.data_persistence_service import DataPersistenceService
+from services.reinforcement_learning_service import ReinforcementLearningService
+from services.bandit_service import BanditService
+from services.causal_inference_service import CausalInferenceService
 
 class AdsAgent:
     """
@@ -111,6 +114,30 @@ class AdsAgent:
             optimizer=self.optimizer,
             config=self.config,
             logger=self.logger.getChild("BidService")
+        )
+        
+        # Initialize new ReinforcementLearningService
+        services["reinforcement_learning"] = ReinforcementLearningService(
+            ads_api=self.ads_api,
+            optimizer=self.optimizer,
+            config=self.config,
+            logger=self.logger.getChild("ReinforcementLearningService")
+        )
+        
+        # Initialize the new BanditService
+        services["bandit"] = BanditService(
+            ads_api=self.ads_api,
+            optimizer=self.optimizer,
+            config=self.config,
+            logger=self.logger.getChild("BanditService")
+        )
+        
+        # Initialize the new CausalInferenceService
+        services["causal_inference"] = CausalInferenceService(
+            ads_api=self.ads_api,
+            optimizer=self.optimizer,
+            config=self.config,
+            logger=self.logger.getChild("CausalInferenceService")
         )
         
         # Additional services will be initialized similarly
@@ -336,6 +363,60 @@ class AdsAgent:
         except Exception as e:
             self.logger.error(f"Error optimizing campaign budgets: {str(e)}")
             return {"status": "failed", "message": str(e)}
+    
+    def train_rl_bidding_policy(self, campaign_id: Optional[str] = None, 
+                               training_episodes: int = 1000) -> Dict[str, Any]:
+        """
+        Train a reinforcement learning policy for bid optimization.
+        
+        Args:
+            campaign_id: Optional campaign ID to train a policy for a specific campaign
+            training_episodes: Number of episodes to train for
+            
+        Returns:
+            Dictionary with training results
+        """
+        self.logger.info(f"Training RL bidding policy for campaign_id={campaign_id or 'all campaigns'}")
+        
+        try:
+            # Use reinforcement learning service to train policy
+            results = self.services["reinforcement_learning"].train_policy(
+                campaign_id=campaign_id,
+                training_episodes=training_episodes
+            )
+            
+            return results
+            
+        except Exception as e:
+            self.logger.error(f"Error training RL bidding policy: {str(e)}")
+            return {"status": "failed", "message": str(e)}
+    
+    def generate_rl_bid_recommendations(self, campaign_id: Optional[str] = None, 
+                                      exploration_rate: float = 0.1) -> Dict[str, Any]:
+        """
+        Generate bid recommendations using reinforcement learning.
+        
+        Args:
+            campaign_id: Optional campaign ID to generate recommendations for
+            exploration_rate: Exploration rate for epsilon-greedy (0.0 to 1.0)
+            
+        Returns:
+            Dictionary with bid recommendations
+        """
+        self.logger.info(f"Generating RL-based bid recommendations for campaign_id={campaign_id or 'all campaigns'}")
+        
+        try:
+            # Use reinforcement learning service to generate recommendations
+            results = self.services["reinforcement_learning"].generate_bid_recommendations(
+                campaign_id=campaign_id,
+                exploration_rate=exploration_rate
+            )
+            
+            return results
+            
+        except Exception as e:
+            self.logger.error(f"Error generating RL-based bid recommendations: {str(e)}")
+            return {"status": "failed", "message": str(e)}
 
 
 def main():
@@ -351,11 +432,16 @@ def main():
     parser.add_argument("--campaign", help="Campaign ID to target (optional)")
     parser.add_argument("--action", choices=[
         "audit", "keywords", "performance", "optimize", 
-        "negative_keywords", "optimize_bids", "optimize_budgets"
+        "negative_keywords", "optimize_bids", "optimize_budgets",
+        "train_rl_policy", "rl_bid_recommendations"
     ], default="audit", help="Action to perform")
     parser.add_argument("--strategy", choices=[
         "performance_based", "target_cpa", "target_roas", "position_based"
     ], default="performance_based", help="Bid optimization strategy (for optimize_bids action)")
+    parser.add_argument("--episodes", type=int, default=1000, 
+                      help="Training episodes for RL policy training")
+    parser.add_argument("--exploration", type=float, default=0.1,
+                      help="Exploration rate for RL-based recommendations (0.0 to 1.0)")
     
     args = parser.parse_args()
     
@@ -389,6 +475,14 @@ def main():
         
     elif args.action == "optimize_budgets":
         results = agent.optimize_campaign_budgets(days=args.days)
+        print(json.dumps(results, indent=2, default=str))
+    
+    elif args.action == "train_rl_policy":
+        results = agent.train_rl_bidding_policy(campaign_id=args.campaign, training_episodes=args.episodes)
+        print(json.dumps(results, indent=2, default=str))
+        
+    elif args.action == "rl_bid_recommendations":
+        results = agent.generate_rl_bid_recommendations(campaign_id=args.campaign, exploration_rate=args.exploration)
         print(json.dumps(results, indent=2, default=str))
 
 
