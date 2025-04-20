@@ -1,0 +1,6 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+Every public module, class, and function must have a Google‑style docstring (Args:, Returns:, Raises:).

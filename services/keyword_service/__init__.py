@@ -6,4 +6,4 @@ This package provides keyword management, analysis, and optimization services.
 
 from services.keyword_service.keyword_service import KeywordService
 
-__all__ = ['KeywordService'] 
+__all__ = ["KeywordService"]

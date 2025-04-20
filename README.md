@@ -664,6 +664,48 @@ patterns = {
 agent.save_custom_patterns(patterns)
 ```
 
+### CausalInferenceService
+
+The CausalInferenceService provides robust causal inference capabilities to measure the true impact of campaign changes and experiments on key performance metrics.
+
+**Key Features:**
+- Causal impact analysis using Google's CausalImpact package
+- Pre/post intervention analysis
+- Control campaign comparison
+- Statistical significance testing
+- Confidence interval calculation
+
+**Example Usage:**
+```python
+from services.causal_inference_service import CausalInferenceService
+
+# Initialize service
+service = CausalInferenceService(ads_client, config)
+
+# Analyze impact of a campaign change
+results = service.analyze_campaign_change_impact(
+    campaign_id='123456789',
+    change_date='2024-01-01',
+    metric='clicks',
+    control_campaigns=['987654321']
+)
+
+# Check results
+if results['is_significant']:
+    print(f"Estimated effect: {results['estimated_effect']}")
+    print(f"Confidence interval: {results['confidence_interval']}")
+    print(f"P-value: {results['p_value']}")
+```
+
+**Configuration:**
+```python
+config = {
+    'min_pre_period_days': 30,  # Days of data before change
+    'min_post_period_days': 14,  # Days of data after change
+    'significance_level': 0.05   # Statistical significance threshold
+}
+```
+
 ## Development
 
 ### Adding a New Service

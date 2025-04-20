@@ -1,0 +1,6 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+Always format Python code with black (line length 88, 2‑space indent) and adhere to PEP8. Fix any style violations before submitting diffs.

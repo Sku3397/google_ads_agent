@@ -1,0 +1,6 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+All function and method signatures must include complete type hints. If a return type is None, annotate as -> None.

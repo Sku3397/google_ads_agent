@@ -1,0 +1,7 @@
+{
+  "plugins": ["cursor-auto-accept/index.js"],
+  "agent": {
+    "autoAcceptDiffs": true,
+    "autoConfirmCommands": true
+  }
+}

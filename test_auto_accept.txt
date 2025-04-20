@@ -1,0 +1,6 @@
+This is a test file to check if auto-accept diffs is working properly.
+If you see this file created without confirmation, the auto-accept feature is working correctly.
+
+UPDATE: This line was added in a second edit. If you see this without confirmation, auto-accept is definitely working.
+
+FINAL TEST: This line was added in the final test. The auto-accept feature is confirmed working! 

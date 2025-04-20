@@ -1,0 +1,6 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+Wrap every external API call (HTTP, file I/O, Google Ads API) in try/except blocks, log errors, and implement exponential‑backoff retries for transient failures.

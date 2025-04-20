@@ -1,80 +1,196 @@
-# Reinforcement Learning Service
+# Reinforcement Learning Service for Google Ads Optimization
 
-This service provides reinforcement learning (RL) capabilities for optimizing bidding strategies, budget allocation, and other decision-making tasks in Google Ads campaigns.
+A machine learning service that uses reinforcement learning algorithms (PPO and DQN) to optimize Google Ads campaigns through automated bidding and keyword management.
 
-## Features
+## Components
 
-- **Auction Simulator**: Builds a simulator of the ad auction environment based on historical auction insights data
-- **Policy Training**: Trains RL policies (DQN/PPO) for optimizing bids across campaigns and ad groups
-- **Safe Exploration**: Uses epsilon-greedy strategy for balancing exploration with exploitation
-- **Bid Recommendations**: Generates optimized bid recommendations using trained policies
-- **Policy Evaluation**: Evaluates policy performance before applying changes to live campaigns
+### Main Service Class
+- `ReinforcementLearningService`: Core service implementing RL algorithms
+- Custom OpenAI Gym environment for Google Ads
+- Policy models for bidding and keyword management
 
-## Usage
+### Scheduler Integration
+- `RLSchedulerIntegration`: Manages scheduling of RL tasks
+- Automated training, inference, evaluation, and safety checks
+- Configurable schedules and safety thresholds
+- Performance tracking and violation monitoring
 
-### Training a Policy
+## Architecture
 
-```python
-from services.reinforcement_learning_service import ReinforcementLearningService
+### State Space
+- Campaign performance metrics
+- Keyword-level statistics
+- Historical performance data
+- Market competition indicators
 
-# Initialize the service
-rl_service = ReinforcementLearningService(
-    ads_api=ads_api,
-    optimizer=optimizer,
-    config=config
-)
+### Action Space
+- Bidding actions: Continuous bid adjustments (0.5x to 2.0x)
+- Keyword actions: Add, Remove, Pause, Enable
 
-# Train a policy for a specific campaign
-result = rl_service.train_policy(
-    campaign_id="123456789",
-    training_episodes=1000
-)
+### Policy Networks
+1. BiddingPolicy
+   - Continuous action space
+   - Shared feature extractor
+   - Policy and value heads
+   - PPO-style action evaluation
 
-# Generate recommendations using the trained policy
-recommendations = rl_service.generate_bid_recommendations(
-    campaign_id="123456789",
-    exploration_rate=0.1
-)
-```
+2. KeywordPolicy
+   - Discrete action space
+   - Categorical distributions
+   - Value estimation for PPO
 
-### Command-line Interface
+### Scheduler Components
+1. Training Schedule
+   - Daily training at 2 AM
+   - Minimum sample requirements
+   - Automatic model evaluation
+   - Best model preservation
 
-```bash
-# Train an RL policy for all campaigns
-python ads_agent.py --action train_rl_policy --episodes 2000
+2. Inference Schedule
+   - Hourly optimization during safe hours (7 AM - 10 PM)
+   - Safety-constrained action application
+   - Performance tracking
 
-# Train an RL policy for a specific campaign
-python ads_agent.py --action train_rl_policy --campaign 123456789 --episodes 2000
+3. Evaluation Pipeline
+   - Daily evaluation at 1 AM
+   - Multiple evaluation episodes
+   - Performance ratio monitoring
+   - Automatic safety measures
 
-# Generate bid recommendations using RL
-python ads_agent.py --action rl_bid_recommendations --exploration 0.05
-```
+4. Safety Checks
+   - Hourly monitoring at :15
+   - Conversion rate and ROAS tracking
+   - Cost increase monitoring
+   - Violation history maintenance
 
 ## Configuration
 
-Example configuration settings in `.env` file:
-
+### Training Configuration
+```python
+{
+    'frequency': 'daily',
+    'hour': 2,
+    'minute': 0,
+    'days_between': 1,
+    'min_samples': 1000,
+    'evaluation_episodes': 5
+}
 ```
-# Reinforcement Learning Settings
-RL_AUCTION_SIMULATOR_ENABLED=true
-RL_EPSILON=0.1
-RL_LEARNING_RATE=0.001
-RL_DISCOUNT_FACTOR=0.95
-RL_BATCH_SIZE=64
-RL_MEMORY_SIZE=10000
-RL_TARGET_UPDATE_FREQUENCY=100
-RL_MODEL_SAVE_PATH=models/rl
+
+### Inference Configuration
+```python
+{
+    'frequency': 'hourly',
+    'minute': 30,
+    'safe_hours': range(7, 22)  # 7 AM to 10 PM
+}
+```
+
+### Safety Configuration
+```python
+{
+    'check_frequency': 'hourly',
+    'minute': 15,
+    'max_bid_change': 0.5,  # Maximum 50% change
+    'max_budget_change': 0.3,  # Maximum 30% change
+    'min_performance_ratio': 0.7
+}
+```
+
+## Usage
+
+### Basic Setup
+```python
+from services.reinforcement_learning_service import ReinforcementLearningService
+from services.reinforcement_learning_service.scheduler_integration import RLSchedulerIntegration
+
+# Initialize the RL service
+rl_service = ReinforcementLearningService(config)
+
+# Initialize the scheduler integration
+scheduler_integration = RLSchedulerIntegration(
+    rl_service=rl_service,
+    scheduler=ads_scheduler,
+    config=scheduler_config
+)
+
+# Schedule all tasks
+task_ids = scheduler_integration.schedule_all_tasks()
+```
+
+### Custom Configuration
+```python
+custom_config = {
+    'training': {
+        'frequency': 'daily',
+        'hour': 3,
+        'min_samples': 2000
+    },
+    'safety': {
+        'max_bid_change': 0.3,
+        'min_performance_ratio': 0.8
+    }
+}
+
+scheduler_integration = RLSchedulerIntegration(
+    rl_service=rl_service,
+    scheduler=ads_scheduler,
+    config=custom_config
+)
+```
+
+## Safety Mechanisms
+
+1. Bid Constraints
+   - Maximum bid changes (default: 50%)
+   - Budget change limits (default: 30%)
+   - Historical performance tracking
+
+2. Performance Monitoring
+   - Conversion rate tracking
+   - ROAS monitoring
+   - Cost increase limits
+   - Automatic safety measures
+
+3. Safe Hours
+   - Restricted operation hours
+   - Configurable safe periods
+   - Automatic action blocking
+
+4. Recovery Measures
+   - Best model loading
+   - Exploration reset
+   - Constraint tightening
+   - Performance history tracking
+
+## Monitoring
+
+### Performance Metrics
+- Training rewards
+- Evaluation performance
+- Safety violations
+- Action statistics
+
+### History Access
+```python
+# Get performance history
+performance_history = scheduler_integration.get_performance_history()
+
+# Get safety violations
+violations = scheduler_integration.get_safety_violations()
 ```
 
 ## Dependencies
+- Python 3.8+
+- PyTorch
+- Stable Baselines3
+- Google Ads API
+- NumPy
+- Pandas
 
-This service requires the following Python packages:
-- gym
-- torch
-- stable-baselines3
-- scikit-learn
-
-Make sure these are installed by running:
-```bash
-pip install -r requirements.txt
-``` 
+## Contributing
+1. Follow PEP 8 style guide
+2. Add unit tests for new features
+3. Update documentation
+4. Maintain type hints
+5. Test safety measures 

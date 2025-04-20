@@ -2,11 +2,82 @@ name: Google Ads Agent CI
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main ]
   pull_request:
-    branches: [ main, develop ]
+    branches: [ main ]
 
 jobs:
+  quality-checks:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.9]
+
+    steps:
+    - uses: actions/checkout@v2
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: Run flake8
+      run: |
+        flake8 .
+      continue-on-error: false
+    
+    - name: Run black check
+      run: |
+        black --check .
+      continue-on-error: false
+    
+    - name: Run mypy
+      run: |
+        mypy .
+      continue-on-error: false
+    
+    - name: Run tests with coverage
+      run: |
+        pytest --maxfail=1 --disable-warnings -q --cov=. --cov-report=xml --cov-fail-under=90
+      continue-on-error: false
+    
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v2
+      with:
+        file: ./coverage.xml
+        fail_ci_if_error: true
+
+  build:
+    needs: quality-checks
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.9
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: Build package
+      run: |
+        python setup.py sdist bdist_wheel
+    
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v2
+      with:
+        name: dist
+        path: dist/
+
   lint:
     name: Lint
     runs-on: ubuntu-latest
@@ -19,18 +90,12 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install flake8 black isort
+          pip install flake8 black
           pip install -r requirements.txt
       - name: Lint with flake8
-        run: |
-          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-          flake8 . --count --exit-zero --max-complexity=10 --max-line-length=100 --statistics
-      - name: Check format with black
-        run: |
-          black --check .
-      - name: Check imports with isort
-        run: |
-          isort --check-only --profile black .
+        run: flake8 .
+      - name: Check formatting with black
+        run: black --check .
 
   type-check:
     name: Type Check
@@ -66,34 +131,13 @@ jobs:
           pip install -r requirements.txt
       - name: Test with pytest
         run: |
-          pytest --cov=services --cov=ads_agent.py --cov-report=xml --cov-report=term --cov-fail-under=90
+          pytest --maxfail=1 --disable-warnings -q --cov=services --cov=ads_agent.py --cov-report=xml --cov-report=term --cov-fail-under=90
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v1
         with:
           file: ./coverage.xml
           fail_ci_if_error: true
 
-  build:
-    name: Build and Package
-    needs: [lint, type-check, test]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: Set up Python
-        uses: actions/setup-python@v2
-        with:
-          python-version: 3.9
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install build twine
-      - name: Build package
-        run: |
-          python -m build
-      - name: Check package
-        run: |
-          twine check dist/*
-          
   notify:
     name: Notify
     needs: [build]

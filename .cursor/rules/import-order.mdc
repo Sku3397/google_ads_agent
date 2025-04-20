@@ -1,0 +1,6 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+Order imports as: 1) Standard library, 2) Third‑party, 3) Local; each group alphabetized, separated by a blank line.

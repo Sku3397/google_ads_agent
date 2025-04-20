@@ -1,0 +1,6 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+In .cursorci/ci.yml, enforce steps in this order: 1) flake8 ., 2) black --check ., 3) mypy ., 4) pytest --maxfail=1 --disable-warnings -q. Fail the build on any error.

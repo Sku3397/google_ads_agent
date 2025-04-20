@@ -1,30 +1,37 @@
 @echo off
-echo Running all tests for Google Ads Optimization Agent...
-echo.
-
-echo Running comprehensive tests...
-py test_comprehensive.py
+echo Running all quality checks...
 
 echo.
-echo Running logger tests...
-py test_logger.py
+echo Running flake8...
+flake8 .
+if %errorlevel% neq 0 (
+    echo Flake8 check failed!
+    exit /b %errorlevel%
+)
 
 echo.
-echo Running ads API tests...
-py test_ads_api.py
+echo Running black check...
+black --check .
+if %errorlevel% neq 0 (
+    echo Black check failed!
+    exit /b %errorlevel%
+)
 
 echo.
-echo Running app tests...
-py test_app.py
+echo Running mypy...
+mypy .
+if %errorlevel% neq 0 (
+    echo Mypy check failed!
+    exit /b %errorlevel%
+)
 
 echo.
-echo Running command pattern tests...
-py test_command_pattern.py
+echo Running pytest with coverage...
+pytest --maxfail=1 --disable-warnings -q --cov=. --cov-report=xml --cov-fail-under=90
+if %errorlevel% neq 0 (
+    echo Tests failed!
+    exit /b %errorlevel%
+)
 
 echo.
-echo Running command direct tests...
-py test_command_direct.py
-
-echo.
-echo All tests completed!
-pause 
+echo All quality checks passed successfully! 

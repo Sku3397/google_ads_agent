@@ -120,5 +120,79 @@
     "created_at": "2025-04-18T11:30:45.678901",
     "status": "scheduled",
     "error": null
+  },
+  "b7f12a9d-e3c5-4b67-8d91-f23a8c1e0912": {
+    "task_id": "b7f12a9d-e3c5-4b67-8d91-f23a8c1e0912",
+    "name": "💰 Monthly LTV Model Training",
+    "schedule_type": "monthly",
+    "args": ["train_ltv_model"],
+    "kwargs": {
+      "days": 365,
+      "target_col": "customer_ltv"
+    },
+    "hour": 1,
+    "minute": 0,
+    "day": 1,
+    "last_run": null,
+    "next_run": "2025-05-01T01:00:00",
+    "created_at": "2025-04-20T08:15:30.123456",
+    "status": "scheduled",
+    "error": null,
+    "function": "agent.services['ltv_bidding'].train_ltv_model"
+  },
+  "e29d4f7b-6a31-4c8e-b2d7-a8f15e237d61": {
+    "task_id": "e29d4f7b-6a31-4c8e-b2d7-a8f15e237d61",
+    "name": "💸 Weekly LTV Bid Adjustments",
+    "schedule_type": "weekly",
+    "args": [],
+    "kwargs": {
+      "min_data_points": 100,
+      "min_confidence": 0.7,
+      "max_bid_adjustment": 0.3
+    },
+    "hour": 3,
+    "minute": 0,
+    "day_of_week": "tuesday",
+    "last_run": null,
+    "next_run": "2025-04-23T03:00:00",
+    "created_at": "2025-04-20T08:18:45.234567",
+    "status": "scheduled",
+    "function": "agent.services['ltv_bidding'].generate_ltv_bid_adjustments"
+  },
+  "c4e8f1b5-9d23-4a67-b5c9-1e7d8f32a901": {
+    "task_id": "c4e8f1b5-9d23-4a67-b5c9-1e7d8f32a901",
+    "name": "📈 Weekly LTV-Based Budget Optimization",
+    "schedule_type": "weekly",
+    "args": [],
+    "kwargs": {
+      "days": 30,
+      "reallocation_percent": 0.15
+    },
+    "hour": 4,
+    "minute": 0,
+    "day_of_week": "wednesday",
+    "last_run": null,
+    "next_run": "2025-04-24T04:00:00",
+    "created_at": "2025-04-20T08:20:15.345678",
+    "status": "scheduled",
+    "function": "agent.services['ltv_bidding'].optimize_campaign_budget_by_ltv"
+  },
+  "a2d9b3e7-f4c6-4d12-8e97-3b5f9c8a7d61": {
+    "task_id": "a2d9b3e7-f4c6-4d12-8e97-3b5f9c8a7d61",
+    "name": "📊 Monthly LTV Performance Evaluation",
+    "schedule_type": "monthly",
+    "args": [],
+    "kwargs": {
+      "days": 90,
+      "lookback_days": 180
+    },
+    "hour": 2,
+    "minute": 30,
+    "day": 5,
+    "last_run": null,
+    "next_run": "2025-05-05T02:30:00",
+    "created_at": "2025-04-20T08:25:10.456789",
+    "status": "scheduled",
+    "function": "agent.services['ltv_bidding'].evaluate_ltv_performance"
   }
 }

@@ -8,4 +8,4 @@ require attention or intervention.
 
 from .anomaly_detection_service import AnomalyDetectionService
 
-__all__ = ['AnomalyDetectionService'] 
+__all__ = ["AnomalyDetectionService"]

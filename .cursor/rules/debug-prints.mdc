@@ -1,0 +1,6 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+Never leave print(...) calls in committed code. Use the project’s logger module for all runtime messages, with structured context fields.

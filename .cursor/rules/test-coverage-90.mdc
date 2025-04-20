@@ -1,0 +1,6 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+Every new feature must come with pytest unit tests. Block any pull request if coverage falls below 90%.

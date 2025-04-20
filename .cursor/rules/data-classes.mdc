@@ -1,0 +1,6 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+Use @dataclass for any plain data containers instead of raw dicts or tuples.

@@ -7,4 +7,4 @@ to analyze competitor positions, ad copy, and organic search results.
 
 from services.serp_scraper_service.serp_scraper_service import SERPScraperService
 
-__all__ = ["SERPScraperService"] 
+__all__ = ["SERPScraperService"]

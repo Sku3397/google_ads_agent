@@ -1,655 +1,929 @@
 """
-Reinforcement Learning Service for Google Ads Management System
+Reinforcement Learning Service for Google Ads Optimization
 
-This module provides reinforcement learning capabilities for optimizing
-bidding strategies, budget allocation, and other decision-making tasks
-in Google Ads campaigns.
+This module implements a reinforcement learning service that optimizes bidding strategies
+and campaign management through deep RL algorithms (PPO, DQN, and A3C).
 """
 
 import logging
+from typing import Dict, List, Any, Optional, Tuple, Union, Callable
+from datetime import datetime
 import numpy as np
-import pandas as pd
-from typing import Dict, List, Any, Optional, Tuple
-from datetime import datetime, timedelta
-import os
-import json
-import pickle
-from google.ads.googleads.client import GoogleAdsClient
-from google.ads.googleads.errors import GoogleAdsException
-import tensorflow as tf
-from tensorflow.keras import layers, models
+import torch
+import torch.nn as nn
+from torch.distributions import Categorical
+import gymnasium as gym
+from stable_baselines3 import PPO, DQN, A2C
+from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
+from stable_baselines3.common.callbacks import EvalCallback, CallbackList, CheckpointCallback
+from stable_baselines3.common.evaluation import evaluate_policy
+from sb3_contrib import A2C as A3C
 
 from services.base_service import BaseService
+from .ads_environment import GoogleAdsEnv
+from .policy_models import BiddingPolicy, KeywordPolicy
 
-logger = logging.getLogger(__name__)
 
 class ReinforcementLearningService(BaseService):
-    """
-    Reinforcement Learning Service for optimizing Google Ads using RL algorithms.
-    
-    This service implements various reinforcement learning algorithms to optimize
-    bidding strategies, budget allocation, and other decision-making tasks in
-    Google Ads campaigns.
-    """
-    
-    def __init__(self, client: GoogleAdsClient, customer_id: str):
+    """Service for applying reinforcement learning to Google Ads optimization"""
+
+    def __init__(
+        self,
+        ads_api=None,
+        optimizer=None,
+        config: Optional[Dict[str, Any]] = None,
+        logger: Optional[logging.Logger] = None,
+    ):
         """
-        Initialize the reinforcement learning service.
-        
+        Initialize the RL service.
+
         Args:
-            client: The Google Ads API client
-            customer_id: The Google Ads customer ID
+            ads_api: Google Ads API client instance
+            optimizer: AI optimizer instance
+            config: Configuration dictionary with RL parameters
+            logger: Logger instance
         """
-        super().__init__(client, customer_id)
-        self.model = self._build_model()
-        self.epsilon = 1.0  # For epsilon-greedy exploration
-        self.epsilon_min = 0.01
-        self.epsilon_decay = 0.995
-        self.gamma = 0.95  # Discount factor for future rewards
-        self.memory = []  # Replay buffer for experience replay
-        self.batch_size = 32
-        self.max_memory_size = 10000
-        
-    def _build_model(self) -> tf.keras.Model:
-        """
-        Build a neural network model for the reinforcement learning agent.
-        
-        Returns:
-            A compiled Keras model for the RL agent
-        """
-        model = models.Sequential([
-            layers.Dense(64, activation='relu', input_shape=(10,)),  # State space: 10 features
-            layers.Dense(64, activation='relu'),
-            layers.Dense(3, activation='linear')  # Action space: 3 actions (increase bid, decrease bid, no change)
-        ])
-        model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=0.001),
-                      loss='mse')
-        return model
-    
-    def train_policy(self, historical_data: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """
-        Train the RL policy using historical auction insights data.
-        
-        Args:
-            historical_data: List of dictionaries containing historical performance data
-            
-        Returns:
-            Dictionary with training results and policy metrics
-        """
-        try:
-            logger.info("Starting RL policy training with historical data")
-            states, actions, rewards, next_states, dones = self._process_historical_data(historical_data)
-            
-            for epoch in range(10):  # Number of training epochs
-                for i in range(len(states)):
-                    state = states[i]
-                    action = actions[i]
-                    reward = rewards[i]
-                    next_state = next_states[i]
-                    done = dones[i]
-                    
-                    target = reward
-                    if not done:
-                        target = reward + self.gamma * np.amax(self.model.predict(next_state)[0])
-                    target_f = self.model.predict(state)
-                    target_f[0][action] = target
-                    self.model.fit(state, target_f, epochs=1, verbose=0)
-                
-                logger.info(f"Epoch {epoch+1}/10 completed")
-            
-            # Update epsilon for exploration-exploitation balance
-            if self.epsilon > self.epsilon_min:
-                self.epsilon *= self.epsilon_decay
-            
-            return {
-                "status": "success",
-                "message": "Policy training completed",
-                "epsilon": self.epsilon,
-                "training_epochs": 10
-            }
-        except Exception as e:
-            error_message = f"Error training RL policy: {str(e)}"
-            logger.error(error_message)
-            return {
-                "status": "failed",
-                "message": error_message
-            }
-    
-    def simulate_strategy(self, campaign_id: str, simulation_params: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Simulate an RL strategy on a specific campaign using historical data.
-        
-        Args:
-            campaign_id: The campaign ID to simulate the strategy on
-            simulation_params: Dictionary with simulation parameters
-            
-        Returns:
-            Dictionary with simulation results
-        """
-        try:
-            logger.info(f"Simulating RL strategy for campaign {campaign_id}")
-            # Placeholder for simulation logic
-            return {
-                "status": "success",
-                "message": f"Simulation completed for campaign {campaign_id}",
-                "results": {
-                    "campaign_id": campaign_id,
-                    "simulated_metrics": {
-                        "clicks": 0,
-                        "impressions": 0,
-                        "cost": 0.0,
-                        "conversions": 0.0
-                    }
-                }
-            }
-        except Exception as e:
-            error_message = f"Error simulating RL strategy: {str(e)}"
-            logger.error(error_message)
-            return {
-                "status": "failed",
-                "message": error_message
-            }
-    
-    def get_action(self, state: np.ndarray) -> int:
-        """
-        Choose an action based on the current state using epsilon-greedy policy.
-        
-        Args:
-            state: The current state of the environment as a numpy array
-            
-        Returns:
-            Integer representing the chosen action (0: increase bid, 1: decrease bid, 2: no change)
-        """
-        if np.random.rand() <= self.epsilon:
-            return np.random.randint(3)  # Explore: random action
-        else:
-            return np.argmax(self.model.predict(state)[0])  # Exploit: best action according to model
-    
-    def store_experience(self, state: np.ndarray, action: int, reward: float, next_state: np.ndarray, done: bool):
-        """
-        Store an experience in the replay buffer for later training.
-        
-        Args:
-            state: The current state
-            action: The action taken
-            reward: The reward received
-            next_state: The resulting state after the action
-            done: Boolean indicating if the episode is finished
-        """
-        self.memory.append((state, action, reward, next_state, done))
-        if len(self.memory) > self.max_memory_size:
-            self.memory.pop(0)  # Remove oldest experience if buffer is full
-    
-    def replay_experience(self):
-        """
-        Replay experiences from memory to train the model.
-        """
-        if len(self.memory) < self.batch_size:
-            return
-        
-        batch = np.random.choice(len(self.memory), self.batch_size, replace=False)
-        states = np.array([self.memory[i][0] for i in batch])
-        actions = np.array([self.memory[i][1] for i in batch])
-        rewards = np.array([self.memory[i][2] for i in batch])
-        next_states = np.array([self.memory[i][3] for i in batch])
-        dones = np.array([self.memory[i][4] for i in batch])
-        
-        targets = rewards + self.gamma * np.max(self.model.predict(next_states), axis=1) * (1 - dones)
-        target_f = self.model.predict(states)
-        for i in range(self.batch_size):
-            target_f[i][actions[i]] = targets[i]
-        self.model.fit(states, target_f, epochs=1, verbose=0)
-    
-    def _process_historical_data(self, historical_data: List[Dict[str, Any]]) -> tuple:
-        """
-        Process historical data into states, actions, rewards, next states, and done flags.
-        
-        Args:
-            historical_data: List of dictionaries with historical performance data
-            
-        Returns:
-            Tuple of (states, actions, rewards, next_states, dones)
-        """
-        # Placeholder for processing logic
-        states = []
-        actions = []
-        rewards = []
-        next_states = []
-        dones = []
-        return states, actions, rewards, next_states, dones
-    
-    def safe_deploy_policy(self, campaign_id: str) -> Dict[str, Any]:
-        """
-        Safely deploy the trained policy to a campaign with rollback capability.
-        
-        Args:
-            campaign_id: The campaign ID to deploy the policy to
-            
-        Returns:
-            Dictionary with deployment status and details
-        """
-        try:
-            logger.info(f"Safely deploying RL policy to campaign {campaign_id}")
-            # Placeholder for deployment logic with epsilon-greedy exploration
-            return {
-                "status": "success",
-                "message": f"Policy deployed to campaign {campaign_id} with epsilon-greedy exploration",
-                "campaign_id": campaign_id,
-                "epsilon": self.epsilon
-            }
-        except Exception as e:
-            error_message = f"Error deploying RL policy: {str(e)}"
-            logger.error(error_message)
-            return {
-                "status": "failed",
-                "message": error_message
-            }
-    
-    def build_auction_simulator(self, campaign_id: Optional[str] = None) -> Dict[str, Any]:
-        """
-        Build an auction simulator using historical data.
-        
-        Args:
-            campaign_id: Optional campaign ID to build a simulator for a specific campaign
-            
-        Returns:
-            A dictionary containing the simulator model and metadata
-        """
-        start_time = datetime.now()
-        
-        try:
-            self.logger.info(f"Building auction simulator for campaign_id={campaign_id or 'all campaigns'}")
-            
-            # Get historical auction insights data
-            auction_insights = self._get_historical_auction_insights(campaign_id)
-            
-            if not auction_insights:
-                self.logger.warning("Insufficient auction insights data for building simulator")
-                self._track_execution(start_time, False)
-                return {"status": "failed", "message": "Insufficient auction insights data"}
-            
-            # Process auction insights data
-            processed_data = self._process_auction_insights(auction_insights)
-            
-            # Build the simulator model
-            simulator_model = self._build_simulator_model(processed_data)
-            
-            # Save the simulator model
-            simulator_path = os.path.join(self.model_save_path, f"simulator_{campaign_id or 'all'}.pkl")
-            with open(simulator_path, 'wb') as f:
-                pickle.dump(simulator_model, f)
-            
-            result = {
-                "status": "success",
-                "simulator_model": simulator_model,
-                "timestamp": datetime.now().isoformat(),
-                "campaign_id": campaign_id,
-                "data_points": len(auction_insights),
-                "model_path": simulator_path
-            }
-            
-            self.logger.info(f"Auction simulator built successfully with {len(auction_insights)} data points")
-            self._track_execution(start_time, True)
-            
-            return result
-            
-        except Exception as e:
-            self.logger.error(f"Error building auction simulator: {str(e)}")
-            self._track_execution(start_time, False)
-            return {"status": "failed", "message": str(e)}
-    
-    def train_policy(self, campaign_id: Optional[str] = None, training_episodes: int = 1000) -> Dict[str, Any]:
-        """
-        Train a reinforcement learning policy for bid optimization.
-        
-        Args:
-            campaign_id: Optional campaign ID to train a policy for a specific campaign
-            training_episodes: Number of episodes to train for
-            
-        Returns:
-            A dictionary containing training results and metrics
-        """
-        start_time = datetime.now()
-        
-        try:
-            self.logger.info(f"Training RL policy for campaign_id={campaign_id or 'all campaigns'} with {training_episodes} episodes")
-            
-            # Check if simulator exists, if not, build it
-            simulator_path = os.path.join(self.model_save_path, f"simulator_{campaign_id or 'all'}.pkl")
-            if not os.path.exists(simulator_path) and self.auction_simulator_enabled:
-                self.logger.info("Simulator not found, building a new one")
-                simulator_result = self.build_auction_simulator(campaign_id)
-                if simulator_result["status"] != "success":
-                    return simulator_result
-            
-            # Initialize or load policy model
-            policy_model = self._initialize_policy_model(campaign_id)
-            
-            # Training loop
-            training_metrics = self._train_policy_model(policy_model, campaign_id, training_episodes)
-            
-            # Save the trained policy model
-            model_path = os.path.join(self.model_save_path, f"policy_{campaign_id or 'all'}.pkl")
-            with open(model_path, 'wb') as f:
-                pickle.dump(policy_model, f)
-            
-            result = {
-                "status": "success",
-                "model": policy_model,
-                "model_path": model_path,
-                "training_metrics": training_metrics,
-                "timestamp": datetime.now().isoformat(),
-                "campaign_id": campaign_id,
-                "training_episodes": training_episodes
-            }
-            
-            self.logger.info(f"Policy training completed successfully after {training_episodes} episodes")
-            self._track_execution(start_time, True)
-            
-            return result
-            
-        except Exception as e:
-            self.logger.error(f"Error training policy: {str(e)}")
-            self._track_execution(start_time, False)
-            return {"status": "failed", "message": str(e)}
-    
-    def generate_bid_recommendations(self, campaign_id: Optional[str] = None, 
-                                    exploration_rate: float = 0.1) -> Dict[str, Any]:
-        """
-        Generate bid recommendations using the trained policy.
-        
-        Args:
-            campaign_id: Optional campaign ID to generate recommendations for
-            exploration_rate: Exploration rate for epsilon-greedy (0.0 to 1.0)
-            
-        Returns:
-            A dictionary containing bid recommendations
-        """
-        start_time = datetime.now()
-        
-        try:
-            self.logger.info(f"Generating RL-based bid recommendations for campaign_id={campaign_id or 'all campaigns'}")
-            
-            # Load the policy model
-            policy_model = self._load_policy_model(campaign_id)
-            if not policy_model:
-                self.logger.warning("Policy model not found, consider training first")
-                self._track_execution(start_time, False)
-                return {"status": "failed", "message": "Policy model not found"}
-            
-            # Get current keyword data
-            keywords = self._get_current_keyword_data(campaign_id)
-            
-            if not keywords:
-                self.logger.warning("No keyword data available for generating recommendations")
-                self._track_execution(start_time, False)
-                return {"status": "failed", "message": "No keyword data available"}
-            
-            # Generate recommendations
-            recommendations = self._generate_recommendations_from_policy(policy_model, keywords, exploration_rate)
-            
-            result = {
-                "status": "success",
-                "recommendations": recommendations,
-                "timestamp": datetime.now().isoformat(),
-                "campaign_id": campaign_id,
-                "exploration_rate": exploration_rate,
-                "keywords_analyzed": len(keywords),
-                "recommendations_count": len(recommendations)
-            }
-            
-            self.logger.info(f"Generated {len(recommendations)} bid recommendations using RL policy")
-            self._track_execution(start_time, True)
-            
-            return result
-            
-        except Exception as e:
-            self.logger.error(f"Error generating bid recommendations: {str(e)}")
-            self._track_execution(start_time, False)
-            return {"status": "failed", "message": str(e)}
-    
-    def evaluate_policy(self, campaign_id: Optional[str] = None, 
-                       eval_episodes: int = 100) -> Dict[str, Any]:
-        """
-        Evaluate the performance of a trained policy.
-        
-        Args:
-            campaign_id: Optional campaign ID to evaluate policy for
-            eval_episodes: Number of episodes to evaluate
-            
-        Returns:
-            A dictionary containing evaluation metrics
-        """
-        start_time = datetime.now()
-        
-        try:
-            self.logger.info(f"Evaluating RL policy for campaign_id={campaign_id or 'all campaigns'}")
-            
-            # Load the policy model
-            policy_model = self._load_policy_model(campaign_id)
-            if not policy_model:
-                self.logger.warning("Policy model not found, consider training first")
-                self._track_execution(start_time, False)
-                return {"status": "failed", "message": "Policy model not found"}
-            
-            # Evaluate policy
-            eval_metrics = self._evaluate_policy_model(policy_model, campaign_id, eval_episodes)
-            
-            result = {
-                "status": "success",
-                "evaluation_metrics": eval_metrics,
-                "timestamp": datetime.now().isoformat(),
-                "campaign_id": campaign_id,
-                "eval_episodes": eval_episodes
-            }
-            
-            self.logger.info(f"Policy evaluation completed with expected return: {eval_metrics.get('expected_return', 0)}")
-            self._track_execution(start_time, True)
-            
-            return result
-            
-        except Exception as e:
-            self.logger.error(f"Error evaluating policy: {str(e)}")
-            self._track_execution(start_time, False)
-            return {"status": "failed", "message": str(e)}
-    
-    # Private helper methods
-    
-    def _get_historical_auction_insights(self, campaign_id: Optional[str] = None) -> List[Dict[str, Any]]:
-        """
-        Get historical auction insights data for building the simulator.
-        
-        Args:
-            campaign_id: Optional campaign ID to filter data
-            
-        Returns:
-            List of auction insights data dictionaries
-        """
-        # TODO: Implement fetching auction insights from Google Ads API
-        # For now, return a placeholder implementation
-        self.logger.info("Using placeholder auction insights data")
-        
-        # Example data structure - in a real implementation, this would come from the API
-        placeholder_data = []
-        
-        return placeholder_data
-    
-    def _process_auction_insights(self, auction_insights: List[Dict[str, Any]]) -> pd.DataFrame:
-        """
-        Process auction insights data for model building.
-        
-        Args:
-            auction_insights: List of auction insights data dictionaries
-            
-        Returns:
-            Processed data as a pandas DataFrame
-        """
-        # TODO: Implement data processing logic
-        # For now, return a placeholder implementation
-        return pd.DataFrame(auction_insights)
-    
-    def _build_simulator_model(self, processed_data: pd.DataFrame) -> Dict[str, Any]:
-        """
-        Build an auction simulator model from processed data.
-        
-        Args:
-            processed_data: Processed auction insights data
-            
-        Returns:
-            Dictionary containing the simulator model
-        """
-        # TODO: Implement simulator model building logic
-        # For now, return a placeholder implementation
-        return {"type": "placeholder_simulator", "data_shape": processed_data.shape}
-    
-    def _initialize_policy_model(self, campaign_id: Optional[str] = None) -> Dict[str, Any]:
-        """
-        Initialize or load a policy model for RL training.
-        
-        Args:
-            campaign_id: Optional campaign ID for campaign-specific policy
-            
-        Returns:
-            Initialized policy model
-        """
-        # TODO: Implement policy model initialization with DQN or PPO
-        # For now, return a placeholder implementation
-        return {"type": "placeholder_policy", "algorithm": "dqn", "campaign_id": campaign_id}
-    
-    def _train_policy_model(self, policy_model: Dict[str, Any], 
-                           campaign_id: Optional[str] = None, 
-                           training_episodes: int = 1000) -> Dict[str, Any]:
-        """
-        Train a policy model using reinforcement learning.
-        
-        Args:
-            policy_model: The policy model to train
-            campaign_id: Optional campaign ID for campaign-specific training
-            training_episodes: Number of episodes to train for
-            
-        Returns:
-            Dictionary of training metrics
-        """
-        # TODO: Implement policy training logic with DQN or PPO
-        # For now, return a placeholder implementation
-        return {
-            "episodes": training_episodes,
-            "final_loss": 0.01,
-            "final_reward": 10.5,
-            "learning_curve": [0.5, 2.0, 5.0, 8.0, 10.5]
+        super().__init__(ads_api, optimizer, config, logger)
+
+        # Load RL-specific config with defaults
+        rl_base_config = {
+            "algorithm": "PPO",
+            "learning_rate": 3e-4,
+            "n_steps": 2048,
+            "batch_size": 64,
+            "n_epochs": 10,
+            "gamma": 0.99,
+            "gae_lambda": 0.95,
+            "clip_range": 0.2,
+            "ent_coef": 0.01,
+            "max_grad_norm": 0.5,
+            "vf_coef": 0.5,
+            "exploration_fraction": 0.1,
+            "exploration_initial_eps": 1.0,
+            "exploration_final_eps": 0.05,
+            "buffer_size": 100000,
+            "learning_starts": 1000,
+            "target_update_interval": 500,
+            "multi_objective": {
+                "enabled": False,
+                "objectives": ["conversions", "cost", "impressions"],
+                "weights": [0.6, 0.2, 0.2],
+            },
+            "safety": {
+                "max_bid_change": 0.3,  # 30% maximum bid change
+                "max_budget_change": 0.2,  # 20% maximum budget change
+                "min_performance_ratio": 0.8,  # 80% of baseline minimum
+                "recovery_strategy": "rollback",  # rollback or conservative
+            },
         }
-    
-    def _load_policy_model(self, campaign_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
+        rl_user_config = config.get("rl_config", {}) if config else {}
+        self.rl_config = {**rl_base_config, **rl_user_config}
+
+        # Initialize environments
+        self.train_env: Optional[Union[DummyVecEnv, VecNormalize]] = None
+        self.eval_env: Optional[Union[DummyVecEnv, VecNormalize]] = None
+
+        # Initialize policies
+        self.bidding_policy = None
+        self.keyword_policy = None
+
+        # Track training progress
+        self.training_metrics: Dict[str, Any] = {
+            "episodes": 0,
+            "total_timesteps": 0,
+            "mean_reward": 0.0,
+            "best_reward": float("-inf"),
+            "start_time": None,
+            "training_time": 0,
+        }
+
+        # For multi-objective RL
+        self.objective_weights: np.ndarray = np.array(self.rl_config["multi_objective"]["weights"])
+
+        # Action constraints for safety
+        self.action_constraints: Dict[str, float] = {
+            "max_bid_change": self.rl_config["safety"]["max_bid_change"],
+            "max_budget_change": self.rl_config["safety"]["max_budget_change"],
+        }
+
+        # Sample buffer for experience collection
+        self.sample_count: int = 0
+
+        self.logger.info("ReinforcementLearningService initialized")
+
+    def setup_environments(self, campaign_ids: List[str]) -> None:
         """
-        Load a trained policy model.
-        
+        Set up training and evaluation environments for the given campaigns.
+
         Args:
-            campaign_id: Optional campaign ID for campaign-specific policy
-            
-        Returns:
-            Loaded policy model or None if not found
+            campaign_ids: List of campaign IDs to include in training
         """
-        model_path = os.path.join(self.model_save_path, f"policy_{campaign_id or 'all'}.pkl")
-        
-        if not os.path.exists(model_path):
-            self.logger.warning(f"Policy model not found at {model_path}")
-            return None
-            
         try:
-            with open(model_path, 'rb') as f:
-                model = pickle.load(f)
-            return model
+            # Create environments
+            env_config = {
+                "campaign_ids": campaign_ids,
+                "ads_api": self.ads_api,
+                "history_length": 30,
+                "action_space_type": self.rl_config["algorithm"],
+                "multi_objective": self.rl_config["multi_objective"]["enabled"],
+                "objectives": self.rl_config["multi_objective"]["objectives"],
+            }
+
+            # Create base environments
+            train_env_fn = lambda: GoogleAdsEnv(config={**env_config, "mode": "train"})
+            eval_env_fn = lambda: GoogleAdsEnv(config={**env_config, "mode": "eval"})
+
+            # Vectorize the environments
+            train_vec_env = DummyVecEnv([train_env_fn])
+            eval_vec_env = DummyVecEnv([eval_env_fn])
+
+            # Normalize observations and rewards for more stable training
+            self.train_env = VecNormalize(
+                train_vec_env, norm_obs=True, norm_reward=True, clip_obs=10.0, clip_reward=10.0
+            )
+
+            self.eval_env = VecNormalize(
+                eval_vec_env,
+                norm_obs=True,
+                norm_reward=False,  # Don't normalize reward for evaluation
+                training=False,  # Don't update normalization stats during evaluation
+            )
+
+            self.logger.info(
+                f"Environments created for {len(campaign_ids)} campaigns with algorithm {self.rl_config['algorithm']}"
+            )
+
         except Exception as e:
-            self.logger.error(f"Error loading policy model: {str(e)}")
-            return None
-    
-    def _get_current_keyword_data(self, campaign_id: Optional[str] = None) -> List[Dict[str, Any]]:
-        """
-        Get current keyword data for generating recommendations.
-        
-        Args:
-            campaign_id: Optional campaign ID to filter keywords
-            
-        Returns:
-            List of keyword dictionaries with performance data
-        """
+            self.logger.error(f"Error setting up environments: {str(e)}")
+            raise
+
+    def initialize_policies(self) -> None:
+        """Initialize or load policy networks for the selected algorithm"""
         try:
-            # Use the Google Ads API client to fetch keyword data
-            if self.ads_api:
-                days = 30  # Default to 30 days of data
-                keywords = self.ads_api.get_keyword_performance(days_ago=days, campaign_id=campaign_id)
-                self.logger.info(f"Fetched {len(keywords)} keywords for RL-based recommendations")
-                return keywords
+            if not self.train_env:
+                raise ValueError("Environment must be set up before initializing policies")
+
+            # Common kwargs for all algorithms
+            common_kwargs = {
+                "verbose": 1,
+                "tensorboard_log": "./logs/tensorboard/",
+            }
+
+            if self.rl_config["algorithm"] == "PPO":
+                self.bidding_policy = PPO(
+                    "MlpPolicy",
+                    self.train_env,
+                    learning_rate=self.rl_config["learning_rate"],
+                    n_steps=self.rl_config["n_steps"],
+                    batch_size=self.rl_config["batch_size"],
+                    n_epochs=self.rl_config["n_epochs"],
+                    gamma=self.rl_config["gamma"],
+                    gae_lambda=self.rl_config["gae_lambda"],
+                    clip_range=self.rl_config["clip_range"],
+                    ent_coef=self.rl_config["ent_coef"],
+                    max_grad_norm=self.rl_config["max_grad_norm"],
+                    vf_coef=self.rl_config["vf_coef"],
+                    **common_kwargs,
+                )
+            elif self.rl_config["algorithm"] == "DQN":
+                self.bidding_policy = DQN(
+                    "MlpPolicy",
+                    self.train_env,
+                    learning_rate=self.rl_config["learning_rate"],
+                    buffer_size=self.rl_config["buffer_size"],
+                    learning_starts=self.rl_config["learning_starts"],
+                    batch_size=self.rl_config["batch_size"],
+                    gamma=self.rl_config["gamma"],
+                    exploration_fraction=self.rl_config["exploration_fraction"],
+                    exploration_initial_eps=self.rl_config["exploration_initial_eps"],
+                    exploration_final_eps=self.rl_config["exploration_final_eps"],
+                    target_update_interval=self.rl_config["target_update_interval"],
+                    **common_kwargs,
+                )
+            elif self.rl_config["algorithm"] == "A3C":
+                self.bidding_policy = A3C(
+                    "MlpPolicy",
+                    self.train_env,
+                    learning_rate=self.rl_config["learning_rate"],
+                    n_steps=self.rl_config["n_steps"],
+                    gamma=self.rl_config["gamma"],
+                    gae_lambda=self.rl_config["gae_lambda"],
+                    ent_coef=self.rl_config["ent_coef"],
+                    max_grad_norm=self.rl_config["max_grad_norm"],
+                    vf_coef=self.rl_config["vf_coef"],
+                    **common_kwargs,
+                )
             else:
-                self.logger.warning("No Google Ads API client available")
-                return []
+                raise ValueError(f"Unsupported algorithm: {self.rl_config['algorithm']}")
+
+            self.logger.info(f"Initialized {self.rl_config['algorithm']} policy")
+
         except Exception as e:
-            self.logger.error(f"Error fetching keyword data: {str(e)}")
-            return []
-    
-    def _generate_recommendations_from_policy(self, policy_model: Dict[str, Any], 
-                                             keywords: List[Dict[str, Any]], 
-                                             exploration_rate: float = 0.1) -> List[Dict[str, Any]]:
+            self.logger.error(f"Error initializing policies: {str(e)}")
+            raise
+
+    def train_policy(self, total_timesteps: int = 100000, eval_freq: int = 10000) -> Dict[str, Any]:
         """
-        Generate bid recommendations using the trained policy.
-        
+        Train the RL policies with advanced callbacks.
+
         Args:
-            policy_model: Trained RL policy model
-            keywords: List of keywords to generate recommendations for
-            exploration_rate: Exploration rate for epsilon-greedy (0.0 to 1.0)
-            
+            total_timesteps: Total number of environment steps to train for
+            eval_freq: How often to evaluate the policy
+
         Returns:
-            List of bid recommendation dictionaries
+            Training metrics dictionary
         """
-        # TODO: Implement recommendation generation using policy
-        # For now, return a placeholder implementation
-        recommendations = []
-        
-        for keyword in keywords[:5]:  # Limit to first 5 keywords for placeholder
-            current_bid = keyword.get("current_bid", 0)
-            
-            # Simple placeholder: random adjustment within ±20%
-            if current_bid > 0:
-                adjustment = np.random.uniform(-0.2, 0.2)
-                new_bid = current_bid * (1 + adjustment)
-                
-                recommendations.append({
-                    "keyword_id": keyword.get("criterion_id", ""),
-                    "keyword_text": keyword.get("keyword_text", ""),
-                    "match_type": keyword.get("match_type", ""),
-                    "campaign_id": keyword.get("campaign_id", ""),
-                    "campaign_name": keyword.get("campaign_name", ""),
-                    "ad_group_id": keyword.get("ad_group_id", ""),
-                    "ad_group_name": keyword.get("ad_group_name", ""),
-                    "current_bid": current_bid,
-                    "recommended_bid": new_bid,
-                    "adjustment_pct": adjustment * 100,
-                    "confidence": 0.7,
-                    "rationale": "Generated by RL policy (placeholder implementation)",
-                    "algorithm": policy_model.get("algorithm", "unknown")
-                })
-        
-        return recommendations
-    
-    def _evaluate_policy_model(self, policy_model: Dict[str, Any], 
-                              campaign_id: Optional[str] = None, 
-                              eval_episodes: int = 100) -> Dict[str, Any]:
+        try:
+            if not self.train_env or not self.bidding_policy:
+                raise ValueError("Environments and policies must be initialized first")
+
+            self.training_metrics["start_time"] = datetime.now()
+
+            # Setup callbacks
+            eval_callback = EvalCallback(
+                self.eval_env,
+                best_model_save_path="./models/best_model",
+                log_path="./logs/eval",
+                eval_freq=eval_freq,
+                deterministic=True,
+                render=False,
+                callback_on_new_best=self._on_new_best_model,
+            )
+
+            checkpoint_callback = CheckpointCallback(
+                save_freq=eval_freq,
+                save_path="./models/checkpoints/",
+                name_prefix=f"{self.rl_config['algorithm']}_model",
+                save_replay_buffer=True if self.rl_config["algorithm"] == "DQN" else False,
+                save_vecnormalize=True,
+            )
+
+            callback_list = CallbackList([eval_callback, checkpoint_callback])
+
+            # Train the policy
+            self.bidding_policy.learn(
+                total_timesteps=total_timesteps,
+                callback=callback_list,
+                tb_log_name=f"{self.rl_config['algorithm']}_run_{datetime.now().strftime('%Y%m%d_%H%M')}",
+            )
+
+            # Update metrics
+            if hasattr(self.train_env, "get_attr"):
+                self.training_metrics["episodes"] += self.train_env.get_attr("episode_count")[0]
+
+            self.training_metrics["total_timesteps"] += total_timesteps
+            self.training_metrics["training_time"] += (
+                datetime.now() - self.training_metrics["start_time"]
+            ).total_seconds()
+
+            # Final evaluation
+            mean_reward, std_reward = evaluate_policy(
+                self.bidding_policy, self.eval_env, n_eval_episodes=10, deterministic=True
+            )
+
+            self.training_metrics["mean_reward"] = mean_reward
+
+            # Save final model
+            self.save_policy("final_model")
+
+            self.logger.info(
+                f"Training completed: {total_timesteps} steps in "
+                f"{self.training_metrics['training_time']:.2f} seconds, "
+                f"final reward: {mean_reward:.2f}±{std_reward:.2f}"
+            )
+
+            return self.training_metrics
+
+        except Exception as e:
+            self.logger.error(f"Error during training: {str(e)}")
+            raise
+
+    def _on_new_best_model(self) -> None:
+        """Callback that gets triggered when a new best model is found"""
+        self.logger.info("New best model found during training")
+        # Additional custom logic like notifying other services could go here
+
+    def save_policy(self, name: str) -> None:
         """
-        Evaluate a trained policy model.
-        
+        Save the current policy and environment normalization to disk.
+
         Args:
-            policy_model: The policy model to evaluate
-            campaign_id: Optional campaign ID for campaign-specific evaluation
-            eval_episodes: Number of episodes to evaluate
-            
-        Returns:
-            Dictionary of evaluation metrics
+            name: Name to save the policy under
         """
-        # TODO: Implement policy evaluation logic
-        # For now, return a placeholder implementation
-        return {
-            "expected_return": 15.5,
-            "ctr_improvement": 0.02,
-            "conversion_improvement": 0.01,
-            "cost_efficiency": 0.15
-        } 
+        try:
+            os.makedirs("./models", exist_ok=True)
+
+            save_path = f"./models/{name}"
+            self.bidding_policy.save(save_path)
+
+            # Save VecNormalize stats
+            if isinstance(self.train_env, VecNormalize):
+                self.train_env.save(f"{save_path}_vecnormalize.pkl")
+
+            self.logger.info(f"Policy saved to {save_path}")
+
+        except Exception as e:
+            self.logger.error(f"Error saving policy: {str(e)}")
+            raise
+
+    def load_policy(self, name: str) -> None:
+        """
+        Load a saved policy and environment normalization from disk.
+
+        Args:
+            name: Name of the policy to load
+        """
+        try:
+            load_path = f"./models/{name}"
+
+            # Load the appropriate policy class
+            if self.rl_config["algorithm"] == "PPO":
+                self.bidding_policy = PPO.load(load_path, env=self.train_env)
+            elif self.rl_config["algorithm"] == "DQN":
+                self.bidding_policy = DQN.load(load_path, env=self.train_env)
+            elif self.rl_config["algorithm"] == "A3C":
+                self.bidding_policy = A3C.load(load_path, env=self.train_env)
+
+            # Load VecNormalize stats if available
+            vec_normalize_path = f"{load_path}_vecnormalize.pkl"
+            if os.path.exists(vec_normalize_path) and isinstance(self.train_env, VecNormalize):
+                self.train_env = VecNormalize.load(vec_normalize_path, self.train_env.venv)
+                # Don't update normalization stats during evaluation
+                self.train_env.training = False
+
+                # Also update eval_env
+                if isinstance(self.eval_env, VecNormalize):
+                    self.eval_env = VecNormalize.load(vec_normalize_path, self.eval_env.venv)
+                    self.eval_env.training = False
+
+            self.logger.info(f"Policy loaded from {load_path}")
+
+        except Exception as e:
+            self.logger.error(f"Error loading policy: {str(e)}")
+            raise
+
+    def get_action(self, state: np.ndarray, deterministic: bool = True) -> np.ndarray:
+        """
+        Get an action from the policy for the given state with safety constraints.
+
+        Args:
+            state: Current environment state
+            deterministic: Whether to use deterministic or stochastic actions
+
+        Returns:
+            Action array from the policy, constrained by safety limits
+        """
+        try:
+            if self.bidding_policy is None:
+                raise ValueError("Policy is not initialized or loaded")
+
+            # Get action from policy
+            action, _ = self.bidding_policy.predict(state, deterministic=deterministic)
+
+            # Apply safety constraints
+            action = self._apply_safety_constraints(action)
+
+            return action
+
+        except Exception as e:
+            self.logger.error(f"Error getting action: {str(e)}")
+            # Return a safe default action in case of error
+            return np.zeros(self.train_env.action_space.shape[0])
+
+    def _apply_safety_constraints(self, action: np.ndarray) -> np.ndarray:
+        """
+        Apply safety constraints to actions to prevent excessive changes.
+
+        Args:
+            action: Raw action from policy
+
+        Returns:
+            Constrained action
+        """
+        # If bidding action (assume first dimension controls bid multiplier)
+        if action.shape[0] >= 1:
+            # Get bid multiplier (assuming action[0] represents bid adjustment)
+            bid_multiplier = action[0]
+
+            # Apply constraint
+            max_change = self.action_constraints["max_bid_change"]
+            constrained_multiplier = np.clip(bid_multiplier, 1.0 - max_change, 1.0 + max_change)
+
+            # Update action with constrained value
+            action[0] = constrained_multiplier
+
+        # If budget action (assume second dimension controls budget)
+        if action.shape[0] >= 2:
+            # Get budget multiplier
+            budget_multiplier = action[1]
+
+            # Apply constraint
+            max_change = self.action_constraints["max_budget_change"]
+            constrained_multiplier = np.clip(budget_multiplier, 1.0 - max_change, 1.0 + max_change)
+
+            # Update action with constrained value
+            action[1] = constrained_multiplier
+
+        return action
+
+    def update_from_feedback(
+        self,
+        state: np.ndarray,
+        action: np.ndarray,
+        reward: float,
+        next_state: np.ndarray,
+        done: bool,
+    ) -> None:
+        """
+        Update the policy from a single step of environment feedback.
+
+        Args:
+            state: Starting state
+            action: Action taken
+            reward: Reward received
+            next_state: Resulting state
+            done: Whether the episode ended
+        """
+        try:
+            # Add to replay buffer if using DQN
+            if self.rl_config["algorithm"] == "DQN" and hasattr(
+                self.bidding_policy, "replay_buffer"
+            ):
+                self.bidding_policy.replay_buffer.add(state, action, reward, next_state, done)
+
+            # Increment sample count
+            self.sample_count += 1
+
+            self.logger.debug(f"Feedback processed: reward={reward:.2f}, " f"done={done}")
+
+        except Exception as e:
+            self.logger.error(f"Error updating from feedback: {str(e)}")
+            raise
+
+    def get_training_metrics(self) -> Dict[str, Any]:
+        """Get current training metrics"""
+        return self.training_metrics.copy()
+
+    def get_sample_count(self) -> int:
+        """Get the current number of collected samples"""
+        return self.sample_count
+
+    def reset_exploration(self) -> None:
+        """Reset exploration parameters to initial values for safety"""
+        try:
+            if self.rl_config["algorithm"] == "DQN" and hasattr(
+                self.bidding_policy, "exploration_rate"
+            ):
+                self.bidding_policy.exploration_rate = self.rl_config["exploration_initial_eps"]
+
+            self.logger.info("Reset exploration parameters to initial values")
+        except Exception as e:
+            self.logger.error(f"Error resetting exploration: {str(e)}")
+
+    def set_action_constraints(self, max_bid_change: float, max_budget_change: float) -> None:
+        """
+        Set constraints on action magnitudes for safety.
+
+        Args:
+            max_bid_change: Maximum allowed bid change (0.0-1.0)
+            max_budget_change: Maximum allowed budget change (0.0-1.0)
+        """
+        if not 0.0 <= max_bid_change <= 1.0:
+            raise ValueError("max_bid_change must be between 0.0 and 1.0")
+
+        if not 0.0 <= max_budget_change <= 1.0:
+            raise ValueError("max_budget_change must be between 0.0 and 1.0")
+
+        self.action_constraints["max_bid_change"] = max_bid_change
+        self.action_constraints["max_budget_change"] = max_budget_change
+
+        self.logger.info(
+            f"Action constraints updated: max_bid_change={max_bid_change}, "
+            f"max_budget_change={max_budget_change}"
+        )
+
+    def get_best_reward(self) -> float:
+        """Get the best reward achieved during training"""
+        return self.training_metrics["best_reward"]
+
+    def get_current_state(self) -> np.ndarray:
+        """Get the current state observation from the environment"""
+        try:
+            if not self.train_env:
+                raise ValueError("Environment not initialized")
+
+            # Get current state from environment
+            if hasattr(self.train_env, "get_attr"):
+                current_state = self.train_env.get_attr("_get_current_state")[0]()
+            else:
+                # Fallback for non-vectorized environments
+                current_state = self.train_env.observation_space.sample()
+                self.logger.warning("Using random state as fallback")
+
+            return current_state
+
+        except Exception as e:
+            self.logger.error(f"Error getting current state: {str(e)}")
+            # Return zero state as fallback
+            return np.zeros(self.train_env.observation_space.shape)
+
+    def apply_action_safely(
+        self,
+        action: np.ndarray,
+        max_bid_change: Optional[float] = None,
+        max_budget_change: Optional[float] = None,
+    ) -> Tuple[bool, Dict[str, Any]]:
+        """
+        Apply an action with safety constraints and monitoring.
+
+        Args:
+            action: Action to apply
+            max_bid_change: Override for maximum bid change
+            max_budget_change: Override for maximum budget change
+
+        Returns:
+            success: Whether the action was successfully applied
+            metrics: Performance metrics after applying the action
+        """
+        try:
+            # Update constraints if provided
+            if max_bid_change is not None:
+                self.action_constraints["max_bid_change"] = max_bid_change
+
+            if max_budget_change is not None:
+                self.action_constraints["max_budget_change"] = max_budget_change
+
+            # Apply safety constraints
+            safe_action = self._apply_safety_constraints(action)
+
+            # Get baseline metrics before applying
+            baseline_metrics = self._get_current_metrics()
+
+            # Apply the action to the environment
+            if hasattr(self.train_env, "step"):
+                next_state, reward, done, info = self.train_env.step(safe_action)
+            else:
+                # If we can't apply to environment, simulate application
+                self.logger.warning("Cannot apply action to environment, simulating")
+                next_state = self.get_current_state()
+                reward = 0.0
+                done = False
+                info = {}
+
+            # Get current metrics after applying
+            current_metrics = self._get_current_metrics()
+
+            # Calculate performance ratio
+            performance_ratio = self._calculate_performance_ratio(current_metrics, baseline_metrics)
+
+            # Check for safety violations
+            safety_violations = self._check_safety_violations(current_metrics, baseline_metrics)
+
+            metrics = {
+                "action": safe_action.tolist(),
+                "reward": reward,
+                "performance_ratio": performance_ratio,
+                "safety_violations": safety_violations,
+                "current_metrics": current_metrics,
+                "baseline_metrics": baseline_metrics,
+            }
+
+            # Determine success based on safety violations
+            success = len(safety_violations) == 0
+
+            if not success:
+                self.logger.warning(
+                    f"Action application failed due to safety violations: {safety_violations}"
+                )
+                self._handle_safety_violation(safety_violations)
+            else:
+                self.logger.info(
+                    f"Action applied successfully: reward={reward:.2f}, "
+                    f"performance_ratio={performance_ratio:.2f}"
+                )
+
+            return success, metrics
+
+        except Exception as e:
+            self.logger.error(f"Error applying action safely: {str(e)}")
+            return False, {"error": str(e)}
+
+    def _get_current_metrics(self) -> Dict[str, float]:
+        """Get current performance metrics from Google Ads API"""
+        try:
+            if not self.ads_api:
+                return {}
+
+            # Get campaign performance data
+            campaigns = self.ads_api.get_campaign_performance(days_ago=7)
+
+            if not campaigns:
+                return {}
+
+            # Aggregate metrics across campaigns
+            metrics = {
+                "impressions": 0,
+                "clicks": 0,
+                "conversions": 0,
+                "cost": 0,
+                "average_cpc": 0,
+            }
+
+            for campaign in campaigns:
+                for key in metrics:
+                    if key in campaign:
+                        metrics[key] += campaign[key]
+
+            # Calculate derived metrics
+            if metrics["impressions"] > 0:
+                metrics["ctr"] = metrics["clicks"] / metrics["impressions"]
+            else:
+                metrics["ctr"] = 0
+
+            if metrics["clicks"] > 0:
+                metrics["conversion_rate"] = metrics["conversions"] / metrics["clicks"]
+                metrics["cost_per_conversion"] = (
+                    metrics["cost"] / metrics["conversions"] if metrics["conversions"] > 0 else 0
+                )
+            else:
+                metrics["conversion_rate"] = 0
+                metrics["cost_per_conversion"] = 0
+
+            return metrics
+
+        except Exception as e:
+            self.logger.error(f"Error getting current metrics: {str(e)}")
+            return {}
+
+    def _calculate_performance_ratio(
+        self, current_metrics: Dict[str, float], baseline_metrics: Dict[str, float]
+    ) -> float:
+        """
+        Calculate performance ratio compared to baseline with multiple objectives.
+
+        Args:
+            current_metrics: Current performance metrics
+            baseline_metrics: Baseline performance metrics
+
+        Returns:
+            Weighted performance ratio
+        """
+        try:
+            # Use multi-objective weights if enabled
+            if self.rl_config["multi_objective"]["enabled"]:
+                objectives = self.rl_config["multi_objective"]["objectives"]
+                weights = self.rl_config["multi_objective"]["weights"]
+            else:
+                # Default single-objective focus on conversions
+                objectives = ["conversions", "cost", "impressions"]
+                weights = [0.7, 0.2, 0.1]
+
+            weighted_ratio = 0.0
+            total_weight = sum(weights)
+
+            # Normalize weights
+            normalized_weights = [w / total_weight for w in weights]
+
+            for obj, weight in zip(objectives, normalized_weights):
+                if obj in baseline_metrics and baseline_metrics[obj] > 0:
+                    current_value = current_metrics.get(obj, 0)
+                    baseline_value = baseline_metrics[obj]
+
+                    # For cost, lower is better so invert the ratio
+                    if obj == "cost":
+                        if current_value > 0:
+                            ratio = baseline_value / current_value
+                        else:
+                            ratio = 2.0  # Arbitrary high value if cost is zero
+                    else:
+                        ratio = current_value / baseline_value
+
+                    weighted_ratio += ratio * weight
+
+            return weighted_ratio
+
+        except Exception as e:
+            self.logger.error(f"Error calculating performance ratio: {str(e)}")
+            return 0.0
+
+    def _check_safety_violations(
+        self, current_metrics: Dict[str, float], baseline_metrics: Dict[str, float]
+    ) -> List[str]:
+        """
+        Check for safety violations in current performance.
+
+        Args:
+            current_metrics: Current performance metrics
+            baseline_metrics: Baseline performance metrics
+
+        Returns:
+            List of safety violation types detected
+        """
+        violations = []
+        safety_config = self.rl_config["safety"]
+
+        # Only check if we have both metrics
+        if not current_metrics or not baseline_metrics:
+            return violations
+
+        # Check cost increase
+        if current_metrics.get("cost", 0) > baseline_metrics.get("cost", 0) * (
+            1 + safety_config["max_budget_change"]
+        ):
+            violations.append("excessive_cost_increase")
+
+        # Check conversion rate drop
+        baseline_conv_rate = baseline_metrics.get("conversion_rate", 0)
+        current_conv_rate = current_metrics.get("conversion_rate", 0)
+
+        if (
+            baseline_conv_rate > 0
+            and current_conv_rate < baseline_conv_rate * safety_config["min_performance_ratio"]
+        ):
+            violations.append("conversion_rate_drop")
+
+        # Check CTR drop
+        baseline_ctr = baseline_metrics.get("ctr", 0)
+        current_ctr = current_metrics.get("ctr", 0)
+
+        if baseline_ctr > 0 and current_ctr < baseline_ctr * safety_config["min_performance_ratio"]:
+            violations.append("ctr_drop")
+
+        # Check for abnormal CPC increase
+        if current_metrics.get("average_cpc", 0) > baseline_metrics.get("average_cpc", 0) * (
+            1 + safety_config["max_bid_change"]
+        ):
+            violations.append("cpc_increase")
+
+        return violations
+
+    def _handle_safety_violation(self, violations: List[str]) -> None:
+        """
+        Handle safety violations based on configured recovery strategy.
+
+        Args:
+            violations: List of safety violation types
+        """
+        recovery_strategy = self.rl_config["safety"]["recovery_strategy"]
+
+        if recovery_strategy == "rollback":
+            # Load best model and reset exploration
+            self.load_policy("best_model")
+            self.reset_exploration()
+            self.logger.info("Applied rollback safety measure: loaded best model")
+
+        elif recovery_strategy == "conservative":
+            # Reduce action constraints by 50%
+            self.set_action_constraints(
+                max_bid_change=self.action_constraints["max_bid_change"] * 0.5,
+                max_budget_change=self.action_constraints["max_budget_change"] * 0.5,
+            )
+            self.logger.info("Applied conservative safety measure: reduced action magnitude")
+
+        else:
+            self.logger.warning(f"Unknown recovery strategy: {recovery_strategy}")
+
+    def get_baseline_metrics(self) -> Dict[str, float]:
+        """Get baseline performance metrics for comparison"""
+        return self._get_current_metrics()
+
+    def evaluate_episode(self, deterministic: bool = True) -> Dict[str, float]:
+        """
+        Evaluate a single episode with the current policy.
+
+        Args:
+            deterministic: Whether to use deterministic policy actions
+
+        Returns:
+            Episode metrics
+        """
+        try:
+            if not self.eval_env:
+                raise ValueError("Evaluation environment not initialized")
+
+            state = self.eval_env.reset()
+            done = False
+            total_reward = 0.0
+            steps = 0
+
+            # Get baseline metrics
+            baseline_metrics = self._get_current_metrics()
+
+            # Run the episode
+            while not done:
+                action = self.get_action(state, deterministic=deterministic)
+                next_state, reward, done, info = self.eval_env.step(action)
+                total_reward += reward
+                state = next_state
+                steps += 1
+
+            # Get current metrics
+            current_metrics = self._get_current_metrics()
+
+            # Calculate performance ratio
+            performance_ratio = self._calculate_performance_ratio(current_metrics, baseline_metrics)
+
+            # Check for safety violations
+            safety_violations = self._check_safety_violations(current_metrics, baseline_metrics)
+
+            return {
+                "reward": total_reward,
+                "steps": steps,
+                "performance_ratio": performance_ratio,
+                "safety_violations": len(safety_violations),
+            }
+
+        except Exception as e:
+            self.logger.error(f"Error evaluating episode: {str(e)}")
+            return {"reward": 0.0, "steps": 0, "performance_ratio": 0.0, "safety_violations": 0}
+
+    def train_multi_objective(
+        self,
+        campaign_ids: List[str],
+        objectives: List[str],
+        weights: List[float],
+        total_timesteps: int = 100000,
+    ) -> Dict[str, Any]:
+        """
+        Train a multi-objective reinforcement learning policy.
+
+        Args:
+            campaign_ids: List of campaign IDs to train on
+            objectives: List of objective metrics to optimize
+            weights: Weights for each objective
+            total_timesteps: Total environment steps to train for
+
+        Returns:
+            Training metrics
+        """
+        try:
+            # Update multi-objective configuration
+            self.rl_config["multi_objective"]["enabled"] = True
+            self.rl_config["multi_objective"]["objectives"] = objectives
+            self.rl_config["multi_objective"]["weights"] = weights
+
+            # Normalize weights
+            total_weight = sum(weights)
+            self.objective_weights = np.array([w / total_weight for w in weights])
+
+            # Setup environments with multi-objective reward
+            self.setup_environments(campaign_ids)
+
+            # Initialize policies
+            self.initialize_policies()
+
+            # Train the multi-objective policy
+            return self.train_policy(total_timesteps=total_timesteps)
+
+        except Exception as e:
+            self.logger.error(f"Error in multi-objective training: {str(e)}")
+            raise
+
+    def train_multi_campaign(
+        self,
+        campaign_ids: List[str],
+        campaign_budgets: Dict[str, float],
+        total_timesteps: int = 100000,
+    ) -> Dict[str, Any]:
+        """
+        Train across multiple campaigns with budget allocation optimization.
+
+        Args:
+            campaign_ids: List of campaign IDs to train on
+            campaign_budgets: Dictionary of initial budgets by campaign ID
+            total_timesteps: Total environment steps to train for
+
+        Returns:
+            Training metrics
+        """
+        try:
+            # Enable multi-objective with focus on overall performance
+            self.rl_config["multi_objective"]["enabled"] = True
+            self.rl_config["multi_objective"]["objectives"] = [
+                "conversions",
+                "cost",
+                "conversion_value",
+                "revenue",
+            ]
+            self.rl_config["multi_objective"]["weights"] = [0.4, 0.2, 0.3, 0.1]
+
+            # Setup environments with multi-campaign configuration
+            env_config = {
+                "campaign_ids": campaign_ids,
+                "campaign_budgets": campaign_budgets,
+                "multi_campaign": True,
+            }
+
+            # Setup and initialize
+            self.setup_environments(campaign_ids)
+            self.initialize_policies()
+
+            # Train with additional callbacks for budget allocation
+            return self.train_policy(total_timesteps=total_timesteps)
+
+        except Exception as e:
+            self.logger.error(f"Error in multi-campaign training: {str(e)}")
+            raise
+
+
+import os

@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
+
 def load_config():
     """
     Load configuration from environment variables.
@@ -26,15 +27,9 @@ def load_config():
             "login_customer_id": os.getenv("GOOGLE_ADS_LOGIN_CUSTOMER_ID"),
             "customer_id": os.getenv("GOOGLE_ADS_CUSTOMER_ID"),
         },
-        "openai": {
-            "api_key": os.getenv("OPENAI_API_KEY")
-        },
-        "google_ai": {
-            "api_key": os.getenv("GOOGLE_API_KEY")
-        },
-        "scheduler": {
-            "log_file": os.getenv("SCHEDULER_LOG_FILE", "logs/scheduler.log")
-        }
+        "openai": {"api_key": os.getenv("OPENAI_API_KEY")},
+        "google_ai": {"api_key": os.getenv("GOOGLE_API_KEY")},
+        "scheduler": {"log_file": os.getenv("SCHEDULER_LOG_FILE", "logs/scheduler.log")},
     }
 
     # Basic validation (can be expanded)
@@ -43,4 +38,4 @@ def load_config():
     if not config["google_ai"]["api_key"]:
         logging.warning("Google AI API key is missing.")
 
-    return config 
+    return config
