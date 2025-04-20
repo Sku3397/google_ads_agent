@@ -2,6 +2,27 @@
 
 A comprehensive, autonomous Google Ads management system that performs everything a senior Google Ads professional would do, including campaign auditing, keyword optimization, bid management, and performance monitoring.
 
+## Implementation Status
+
+### Completed Services ✅
+- ExpertFeedbackService
+- SERPScraperService 
+- ReinforcementLearningService (Enhanced with PPO, DQN, A2C, SAC)
+- SelfPlayService
+- ContextualSignalService
+- TrendForecastingService
+- LTVBiddingService
+- PortfolioOptimizationService
+
+### In Progress ⚠️
+- BanditService (Enhancing with Thompson Sampling and UCB)
+- CI/CD Pipeline Setup
+
+### Coming Soon 🔜
+- LandingPageOptimizationService
+- GraphOptimizationService
+- VoiceQueryService
+
 ## Architecture
 
 This system uses a modular service-based architecture where each aspect of Google Ads management is handled by a dedicated service. The core services include:
@@ -23,6 +44,13 @@ This system uses a modular service-based architecture where each aspect of Googl
 15. **AnomalyDetectionService** - Detects performance anomalies and triggers alerts
 16. **DataPersistenceService** - Manages data storage and retrieval
 17. **SimulationService** - Simulates changes to campaigns and predicts their impact
+18. **ExpertFeedbackService** - Enables human experts to review and provide feedback on AI-generated recommendations
+19. **SERPScraperService** - Scrapes search engine results pages to gather competitive intelligence
+20. **LTVBiddingService** - Optimizes bidding based on customer lifetime value predictions
+21. **PortfolioOptimizationService** - Optimizes budget allocation across campaigns using convex optimization
+22. **SelfPlayService** - Uses agent vs agent competition to discover robust bidding strategies through self-play
+23. **ContextualSignalService** - Integrates external contextual data to enhance targeting and bidding decisions
+24. **TrendForecastingService** - Provides advanced trend analysis and forecasting beyond basic prediction
 
 ## Installation
 
@@ -79,6 +107,21 @@ python ads_agent.py --action train_rl_policy --episodes 2000
 # Generate bid recommendations using reinforcement learning
 python ads_agent.py --action rl_bid_recommendations --exploration 0.05
 
+# Initialize self-play agent population
+python ads_agent.py --action initialize_self_play_population
+
+# Run self-play tournament to discover optimal strategies
+python ads_agent.py --action run_self_play_tournament
+
+# Evolve the self-play agent population
+python ads_agent.py --action evolve_self_play_population
+
+# Get the elite strategy from self-play
+python ads_agent.py --action get_elite_strategy
+
+# Generate self-play strategy report
+python ads_agent.py --action generate_self_play_strategy_report
+
 # Analyze strategy performance using meta-learning
 python ads_agent.py --action analyze_strategies
 
@@ -97,11 +140,35 @@ python ads_agent.py --action forecast_trends
 # Get demand forecasts from Google Ads Insights
 python ads_agent.py --action forecast_demand
 
+# Get contextual signals for a campaign
+python ads_agent.py --action get_contextual_signals --campaign 123456789 --location "New York" --industry "Retail"
+
+# Apply contextual signal-based optimizations
+python ads_agent.py --action apply_contextual_optimizations --campaign 123456789
+
+# Generate advanced trend report
+python ads_agent.py --action generate_trend_report --campaign 123456789 --lookback_days 90 --forecast_horizon medium_term
+
+# Detect emerging keyword trends
+python ads_agent.py --action detect_emerging_trends --campaign 123456789 --min_growth_rate 0.2
+
+# Discover trending keywords in an industry
+python ads_agent.py --action discover_trending_keywords --industry "Technology" --location "California" --limit 20
+
 # Start the scheduler service
 python run_agent.py --mode scheduler
 
 # Run simulation to predict impact of changes
 python ads_agent.py --action simulate --campaign 123456789 --change "increase_bids_by_10_percent"
+
+# Optimize budget allocation across campaigns
+python ads_agent.py --action optimize_portfolio --objective conversions --budget_limit 1000
+
+# Analyze keywords across campaigns to identify overlaps and cannibalization
+python ads_agent.py --action cross_campaign_keywords
+
+# Apply portfolio optimization recommendations
+python ads_agent.py --action apply_portfolio --recommendations_file portfolio_recommendations.json
 ```
 
 ### Streamlit Web Interface
@@ -120,257 +187,257 @@ This will launch a web-based interface where you can:
 - Generate reports
 - Manage scheduled tasks
 
-## Scheduling Optimizations with SchedulerService
+## Contextual Signal Service
 
-### Features
+The Contextual Signal Service enriches ad targeting and optimization with external contextual signals that impact consumer behavior and campaign performance.
 
-The SchedulerService provides:
+### Key Features
 
-- **Flexible scheduling** - one-time, daily, weekly, and monthly tasks
-- **Task management** - add, update, delete, and view tasks
-- **Execution history** - track when tasks ran and their results
-- **Automatic execution** - runs tasks in the background according to schedule
-- **Manual execution** - run tasks on-demand regardless of schedule
-- **Persistent configuration** - tasks are saved and loaded from disk
+- **Weather Data Integration** - Weather conditions affect consumer behavior; optimize bids accordingly
+- **News and Events Analysis** - Capture the impact of breaking news and local events on search patterns
+- **Industry Trend Signals** - Track industry-specific trends and their influence on campaign performance
+- **Economic Indicators** - Use economic data to adjust bidding strategies based on market conditions
+- **Social Media Trends** - Incorporate social media sentiment and volume for more targeted optimizations
+- **Seasonality Factors** - Automatically account for seasons, holidays, and time-based patterns
 
-### Task Configuration
+### How It Works
 
-Tasks are stored in `data/scheduled_tasks.json` and can be managed via API, CLI, or web interface.
+1. The service collects data from various external APIs (weather, news, economic indicators)
+2. It analyzes the relevance of these signals to specific keywords and campaigns
+3. Signal-based recommendations are generated for bid adjustments and budget allocation
+4. These optimizations can be applied automatically or reviewed first
 
-#### JSON Format
+### Usage
 
-```json
-{
-  "tasks": [
+```bash
+# Get contextual signals for a specific location and industry
+python ads_agent.py --action get_contextual_signals --location "New York" --industry "Retail"
+
+# Apply contextual signal-based optimizations to a campaign
+python ads_agent.py --action apply_contextual_optimizations --campaign 123456789
+
+# Get weather-based recommendations
+python ads_agent.py --action get_contextual_recommendations --signal_type weather
+```
+
+### Configuration
+
+Contextual signal settings can be configured in the `.env` file:
+
+```
+# Contextual Signal Service Configuration
+WEATHER_API_KEY=your_openweathermap_api_key
+NEWS_API_KEY=your_newsapi_key
+TRENDS_API_KEY=your_trends_api_key
+ECONOMIC_API_KEY=your_economic_api_key
+SOCIAL_API_KEY=your_social_api_key
+CONTEXTUAL_SIGNAL_CACHE_HOURS=6
+CONTEXTUAL_SIGNAL_ENABLED=true
+```
+
+For more details, see the [Contextual Signal Service README](services/contextual_signal_service/README.md).
+
+## Trend Forecasting Service
+
+The Trend Forecasting Service provides advanced trend forecasting and analysis capabilities for Google Ads campaigns, going beyond basic forecasting to identify emerging trends, seasonal patterns, and generate comprehensive trend reports.
+
+### Key Features
+
+- **Advanced Time Series Forecasting** - Multiple models including Prophet, SARIMA, and ensemble methods
+- **Emerging Trend Detection** - Identify keywords showing accelerating growth patterns
+- **Seasonal Pattern Identification** - Discover daily, weekly, monthly, and seasonal patterns
+- **Comprehensive Trend Reports** - Generate visualizations and actionable insights
+- **Trending Keyword Discovery** - Find trending keywords in specific industries and locations
+
+### How It Works
+
+1. The service collects historical performance data for keywords and campaigns
+2. It trains and evaluates multiple forecasting models to select the best approach
+3. Advanced analysis detects emerging trends and seasonal patterns
+4. Visualizations and reports are generated to provide actionable insights
+5. The service can recommend keywords based on industry trends
+
+### Usage
+
+```bash
+# Generate a comprehensive trend report
+python ads_agent.py --action generate_trend_report --campaign 123456789 --lookback_days 90
+
+# Forecast performance for a specific keyword
+python ads_agent.py --action forecast_keyword --keyword "office furniture" --horizon medium_term --metric clicks
+
+# Detect emerging trends in a campaign
+python ads_agent.py --action detect_emerging_trends --campaign 123456789 --min_growth_rate 0.2
+
+# Identify seasonal patterns
+python ads_agent.py --action identify_seasonal_patterns --campaign 123456789 --metric clicks
+
+# Discover trending keywords in an industry
+python ads_agent.py --action discover_trending_keywords --industry "Technology" --location "California"
+```
+
+### Configuration
+
+Trend forecasting settings can be configured in the `.env` file:
+
+```
+# Trend Forecasting Service Configuration
+TREND_FORECASTING_ENABLED=true
+TREND_FORECAST_SHORT_TERM_DAYS=7
+TREND_FORECAST_MEDIUM_TERM_DAYS=30
+TREND_FORECAST_LONG_TERM_DAYS=90
+TREND_FORECAST_DEFAULT_MODEL=prophet
+TREND_FORECAST_USE_EXTERNAL_SIGNALS=true
+TREND_FORECAST_MIN_GROWTH_RATE=0.2
+```
+
+For more details, see the [Trend Forecasting Service README](services/trend_forecasting_service/README.md).
+
+## Self Play Service
+
+The system includes a SelfPlayService that employs agent vs agent competition to discover robust bidding strategies through self-play techniques inspired by competitive AI research.
+
+### Key Features
+
+- **Population-based Training (PBT)** - Maintains a population of competing bidding strategies that evolve over time
+- **Tournament-style Competition** - Pits strategies against each other in simulated environments to determine the most effective approaches
+- **Evolutionary Optimization** - Uses natural selection principles to evolve the population, keeping the best strategies and combining their attributes
+- **Strategy Distillation** - Extracts insights from successful strategies for broader application
+- **Robustness Evaluation** - Tests strategies against various market conditions to ensure they're robust
+- **Self-Play Variations** - Implements techniques for effective self-play learning
+- **Transfer Learning** - Applies successful strategies from one context to others
+
+### How It Works
+
+1. The service initializes a population of competing agents with different hyperparameters
+2. Agents compete in tournaments within a simulated Google Ads environment
+3. Tournament results determine each agent's fitness score
+4. The population evolves through selection, crossover, and mutation
+5. The best strategies are extracted and can be deployed in real campaigns
+6. The process continues iteratively, with strategies becoming increasingly sophisticated
+
+### Usage
+
+```bash
+# Initialize the self-play agent population
+python ads_agent.py --action initialize_self_play_population
+
+# Run a tournament between competing agents
+python ads_agent.py --action run_self_play_tournament
+
+# Evolve the agent population based on tournament results
+python ads_agent.py --action evolve_self_play_population
+
+# Get the current best strategy (elite strategy)
+python ads_agent.py --action get_elite_strategy
+
+# Generate a report on strategy evolution
+python ads_agent.py --action generate_self_play_strategy_report
+```
+
+### Configuration
+
+Self-play settings can be configured in the `.env` file:
+
+```
+# Self Play Settings
+SELF_PLAY_POPULATION_SIZE=10
+SELF_PLAY_TOURNAMENT_SIZE=3
+SELF_PLAY_ELITISM_COUNT=2
+SELF_PLAY_MUTATION_RATE=0.1
+SELF_PLAY_CROSSOVER_PROBABILITY=0.3
+```
+
+For more details, see the [Self Play Service README](services/self_play_service/README.md).
+
+## Expert Feedback Service
+
+The Expert Feedback Service enables human experts to review, approve, and provide feedback on the AI-generated recommendations. This service helps to establish a human-in-the-loop workflow for ensuring high-quality recommendations.
+
+**Key Features:**
+- Submit recommendations for expert review
+- Review and approve/reject recommendations
+- Modify recommendations with expert insights
+- Learn from expert feedback to improve future recommendations
+
+**Example Usage:**
+```python
+# Submit bid adjustment recommendations for expert review
+recommendations = [
     {
-      "id": "task_1",
-      "name": "Daily Bid Optimization",
-      "type": "optimize_bids",
-      "schedule_type": "daily",
-      "schedule_time": "02:00",
-      "parameters": {
-        "campaign_id": null,
-        "days": 7,
-        "strategy": "performance_based"
-      },
-      "enabled": true
+        "keyword_id": "123456789",
+        "keyword_text": "example keyword",
+        "current_bid": 1.0,
+        "recommended_bid": 1.5,
+        "confidence": 0.85,
+        "rationale": "Keyword shows good conversion rate"
     }
-  ]
-}
+]
+
+result = agent.submit_recommendations_for_review(
+    recommendation_type="bid_adjustments",
+    recommendations=recommendations,
+    priority="high"
+)
+
+# Get pending reviews for an expert
+pending_reviews = agent.get_pending_expert_reviews(expert_id="expert1")
+
+# Apply expert feedback (approve, reject, or modify)
+agent.apply_expert_feedback(
+    submission_id="abc123",
+    expert_id="expert1",
+    action="approve",
+    feedback={"comment": "Good recommendations"}
+)
+
+# Learn from expert feedback to improve future recommendations
+agent.learn_from_expert_feedback()
 ```
 
-#### Schedule Types
+## SERP Scraper Service
 
-- **one_time**: Run once at a specific datetime (`"2025-05-01T18:30:00"`)
-- **daily**: Run every day at specified time (`"14:30"`)
-- **weekly**: Run on specific days of the week (`"monday:09:00"`)
-- **monthly**: Run on specific day of month (`"1:12:00"`)
+The SERP Scraper Service provides functionality to scrape and analyze search engine results pages (SERPs) to gather competitive intelligence, track organic rankings, and analyze ad positions and content.
 
-### Command Line Interface
+**Key Features:**
+- Scrape Google search results for specific queries
+- Analyze competitor ad copy, positions, and extensions
+- Track organic rankings for specific keywords and domains
+- Analyze SERP features (knowledge panels, local packs, shopping results)
+- Store historical data for trend analysis
 
-Manage scheduled tasks via the command line:
+**Example Usage:**
+```python
+# Scrape a single SERP for a query
+serp_data = agent.scrape_single_serp(
+    query="google ads management software",
+    location="New York"
+)
 
-```bash
-# Start the scheduler in the background
-python run_agent.py --mode scheduler
+# Analyze competitor ads across multiple queries
+competitor_analysis = agent.analyze_serp_competitors([
+    "ppc management software",
+    "google ads automation",
+    "ai google ads management"
+])
 
-# List all scheduled tasks
-python run_agent.py --mode tasks --action list
+# Track organic rankings for your domain
+ranking_data = agent.track_keyword_rankings(
+    keywords=[
+        "ppc software",
+        "google ads management",
+        "automated bid management"
+    ],
+    domain="yourdomain.com"
+)
 
-# Add a new scheduled task
-python run_agent.py --mode tasks --action add --name "Daily Bid Optimization" --type optimize_bids --schedule daily --time "02:00"
-
-# Run a task immediately
-python run_agent.py --mode tasks --action run --id task_123
-
-# Enable/disable a task
-python run_agent.py --mode tasks --action update --id task_123 --enable true
+# Analyze SERP features across queries
+feature_analysis = agent.analyze_serp_features([
+    "local plumber near me",
+    "best restaurants",
+    "digital marketing agency"
+])
 ```
-
-### Running as a Service
-
-For continuous operation, you can run the agent as a background service:
-
-```bash
-python run_agent.py --mode service --frequency daily --hour 4 --minute 0
-```
-
-This will run the optimizations daily at 4:00 AM.
-
-## Reading Reports and Alerts
-
-### Reports Location
-
-Reports are stored in the `reports/` directory, organized by type:
-- `reports/audit/` - Account structure audits
-- `reports/keywords/` - Keyword analysis and suggestions
-- `reports/performance/` - Performance reports
-- `reports/anomalies/` - Detected anomalies
-
-### Alert Configuration
-
-Alerts can be configured in the `.env` file:
-
-```
-# Alert settings
-ENABLE_EMAIL_ALERTS=true
-ALERT_EMAIL=your_email@example.com
-ENABLE_SLACK_ALERTS=false
-SLACK_WEBHOOK_URL=your_slack_webhook_url
-```
-
-## Reinforcement Learning Optimization
-
-The system features advanced reinforcement learning (RL) capabilities for optimizing bidding strategies:
-
-### Auction Simulator
-
-The RL service builds a simulator of the ad auction environment based on historical auction insights data, allowing the system to learn optimal bidding strategies in a safe environment before applying them to live campaigns.
-
-### Policy Training
-
-The RL service uses state-of-the-art algorithms (DQN/PPO) to train bidding policies that maximize ROI while staying within budget constraints. These policies learn to adapt to changing market conditions and competitor behaviors.
-
-### Safe Exploration
-
-The system employs an epsilon-greedy approach to balance exploration (trying new bid values) with exploitation (using known-good bid values), ensuring stable performance while continuously improving.
-
-### Configuration
-
-RL settings can be configured in the `.env` file:
-
-```
-# Reinforcement Learning Settings
-RL_AUCTION_SIMULATOR_ENABLED=true
-RL_EPSILON=0.1
-RL_LEARNING_RATE=0.001
-RL_DISCOUNT_FACTOR=0.95
-RL_BATCH_SIZE=64
-RL_MEMORY_SIZE=10000
-RL_TARGET_UPDATE_FREQUENCY=100
-RL_MODEL_SAVE_PATH=models/rl
-```
-
-For more details, see the [Reinforcement Learning Service README](services/reinforcement_learning_service/README.md).
-
-## Meta Learning Capabilities
-
-The system includes a MetaLearningService that enables it to learn from past strategy executions to improve future optimizations.
-
-### Key Features
-
-- **Strategy Performance Tracking** - Records which strategies worked best in different contexts
-- **Context-Aware Strategy Selection** - Recommends optimal strategies based on campaign context
-- **Cross-Service Pattern Analysis** - Identifies synergies and conflicts between different services
-- **Hyperparameter Optimization** - Automatically tunes parameters for other services
-- **Transfer Learning** - Applies successful strategies from one context to similar contexts
-
-### How It Works
-
-1. Each service records the strategies it executes and their results
-2. The MetaLearningService analyzes this data to identify patterns
-3. When a service needs to select a strategy, it requests a recommendation
-4. The MetaLearningService provides the optimal strategy and parameters based on historical performance
-
-### Usage
-
-```bash
-# Analyze all service strategies
-python ads_agent.py --action analyze_strategies
-
-# Analyze strategies for a specific service
-python ads_agent.py --action analyze_strategies --service bid_service
-```
-
-### Configuration
-
-Meta Learning settings can be configured in the `.env` file:
-
-```
-# Meta Learning Settings
-META_LEARNING_ENABLED=true
-META_LEARNING_SIMILARITY_THRESHOLD=0.7
-META_LEARNING_HISTORY_MAX_SIZE=1000
-META_LEARNING_MODEL_PATH=data/meta_learning/meta_models.pkl
-```
-
-For more details, see the [Meta Learning Service README](services/meta_learning_service/README.md).
-
-## Forecasting Capabilities
-
-The system includes a ForecastingService that predicts future performance metrics, search trends, and budget requirements, enabling proactive optimization rather than reactive adjustments.
-
-### Key Features
-
-- **Performance Metric Forecasting** - Predicts future values for key metrics like clicks, impressions, and conversions
-- **Budget Forecasting** - Projects budget requirements based on performance goals
-- **Search Trend Detection** - Identifies emerging and declining search trends
-- **Demand Forecast Integration** - Connects with Google Ads Insights API for search demand forecasts
-- **Multiple Forecasting Models** - Uses ARIMA, Exponential Smoothing, and ensemble methods
-- **Model Selection** - Automatically evaluates and selects the best forecasting model
-
-### How It Works
-
-1. The service retrieves historical performance data from Google Ads
-2. It trains multiple time series forecasting models on this data
-3. Each model is evaluated on a validation set to determine its accuracy
-4. The best model is used to generate forecasts with confidence intervals
-5. Special analyses are performed to detect emerging search trends
-
-### Usage
-
-```bash
-# Forecast metrics for the next 30 days
-python ads_agent.py --action forecast_metrics --days 30 --metrics clicks,impressions,conversions,cost
-
-# Forecast budget requirements to achieve 100 conversions
-python ads_agent.py --action forecast_budget --campaign 123456789 --target-metric conversions --target-value 100
-
-# Detect emerging and declining search trends
-python ads_agent.py --action forecast_trends
-
-# Get demand forecasts from Google Ads Insights
-python ads_agent.py --action forecast_demand
-```
-
-### Configuration
-
-Forecasting settings can be configured in the `.env` file:
-
-```
-# Forecasting Settings
-FORECASTING_HORIZON_DAYS=30
-FORECASTING_CONFIDENCE_LEVEL=0.95
-FORECASTING_TRAINING_WINDOW_DAYS=90
-```
-
-For more details, see the [Forecasting Service README](services/forecasting_service/README.md).
-
-## Development
-
-### Adding a New Service
-
-To add a new service:
-
-1. Create a new directory under `services/`
-2. Implement the service class inheriting from `BaseService`
-3. Add the service to `services/__init__.py`
-4. Initialize the service in `AdsAgent._initialize_services()`
-
-### Running Tests
-
-```bash
-pytest
-```
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## Acknowledgments
-
-- Google Ads API
-- Google Gemini API for AI-powered optimization
 
 ## Services
 
@@ -464,3 +531,267 @@ feature_analysis = agent.analyze_serp_features([
     "digital marketing agency"
 ])
 ```
+
+### Landing Page Optimization Service
+
+The Landing Page Optimization Service provides tools for analyzing and optimizing landing pages to improve conversion rates and user experience, which ultimately enhances the effectiveness of Google Ads campaigns.
+
+**Key Features:**
+- Landing page performance analysis
+- A/B testing implementation and analysis
+- Page speed optimization
+- Element analysis to identify high-impact page components
+- Form optimization for lead generation
+- Content recommendations for higher conversions
+
+**Example Usage:**
+```python
+# Analyze a landing page for optimization opportunities
+analysis = agent.analyze_landing_page(
+    url="https://example.com/landing-page",
+    days=30
+)
+
+# Create an A/B test for a landing page
+test = agent.create_a_b_test(
+    url="https://example.com/original",
+    variant_urls=["https://example.com/variant1", "https://example.com/variant2"],
+    test_name="Homepage Hero Section Test",
+    duration_days=14
+)
+
+# Get A/B test results
+results = agent.get_a_b_test_results(test_id="test_12345")
+
+# Analyze specific page elements for conversion impact
+element_analysis = agent.analyze_page_elements(
+    url="https://example.com/landing-page"
+)
+
+# Get page speed optimization recommendations
+speed_recommendations = agent.optimize_for_page_speed(
+    url="https://example.com/landing-page"
+)
+
+# Get form optimization recommendations
+form_recommendations = agent.optimize_form_conversion(
+    url="https://example.com/landing-page"
+)
+```
+
+### Graph Optimization Service
+
+The Graph Optimization Service applies graph theory algorithms to Google Ads campaign optimization, enabling sophisticated analysis of keyword relationships, campaign structure, and optimization opportunities.
+
+**Key Features:**
+- Keyword relationship graph analysis
+- Campaign structure visualization and optimization
+- Keyword cluster identification
+- Ad group structure optimization
+- PageRank for keyword importance
+- Community detection to find thematic clusters
+
+**Example Usage:**
+```python
+# Build a graph representing keyword relationships
+graph = agent.build_keyword_relationship_graph(
+    days=30,
+    campaign_id="123456789",
+    min_impressions=100
+)
+
+# Build a graph representing campaign structure
+structure_graph = agent.build_campaign_structure_graph(
+    days=30,
+    account_id="123456789"
+)
+
+# Identify keyword clusters for ad group optimization
+clusters = agent.identify_keyword_clusters(
+    graph_id="graph_12345",
+    min_cluster_size=3,
+    similarity_threshold=0.5
+)
+
+# Get recommendations for optimizing ad group structure
+recommendations = agent.optimize_adgroup_structure(
+    cluster_min_size=3,
+    similarity_threshold=0.5,
+    max_recommendations=10
+)
+```
+
+### Voice Query Service
+
+The Voice Query Service helps optimize Google Ads campaigns for voice search queries, which are becoming increasingly important with the growth of voice assistants and voice-based search.
+
+**Key Features:**
+- Voice search pattern detection
+- Voice search keyword generation
+- Voice query analysis
+- Voice-specific recommendations
+- Conversational pattern analysis
+- Question word analysis and optimization
+
+**Example Usage:**
+```python
+# Analyze search terms for voice search patterns
+analysis = agent.analyze_search_terms_for_voice_patterns(
+    days=30,
+    campaign_id="123456789",
+    min_impressions=10
+)
+
+# Generate voice search-friendly keyword variations
+keywords = agent.generate_voice_search_keywords(
+    seed_keywords=["running shoes", "nike sneakers"],
+    question_variations=True,
+    conversational_variations=True,
+    location_intent=True
+)
+
+# Get voice search optimization recommendations
+recommendations = agent.get_voice_search_recommendations(
+    analysis_id="analysis_12345"
+)
+
+# Save custom voice patterns for industry-specific optimization
+patterns = {
+    "industry_specific": ["dental appointment", "legal advice"],
+    "local_intents": ["stores in my area", "nearby location"],
+    "question_variations": ["tell me about", "I'd like to know"]
+}
+agent.save_custom_patterns(patterns)
+```
+
+## Development
+
+### Adding a New Service
+
+To add a new service:
+
+1. Create a new directory under `services/`
+2. Implement the service class inheriting from `BaseService`
+3. Add the service to `services/__init__.py`
+4. Initialize the service in `AdsAgent._initialize_services()`
+
+### Running Tests
+
+```bash
+pytest
+```
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Acknowledgments
+
+- Google Ads API
+- Google Gemini API for AI-powered optimization
+
+# Google Ads Creative Optimization Service
+
+This service provides advanced creative optimization and testing capabilities for Google Ads campaigns.
+
+## Features
+
+### 1. Creative Element Analysis
+- Analyzes performance of individual creative elements (headlines, descriptions)
+- Identifies patterns in high-performing ads
+- Provides actionable recommendations for improvement
+- Uses NLP techniques to analyze text characteristics
+
+### 2. Automated Creative Testing
+- Sets up and monitors A/B tests for ad creatives
+- Calculates statistical significance of results
+- Provides confidence intervals for performance metrics
+- Generates recommendations based on test results
+
+### 3. Performance Monitoring
+- Real-time tracking of creative performance
+- Automated detection of underperforming ads
+- Creative fatigue detection
+- Statistical significance testing
+
+### 4. Advanced Analytics
+- Text similarity analysis
+- Performance pattern recognition
+- Audience segment analysis
+- Multi-variate testing support
+
+## Installation
+
+1. Install required packages:
+```bash
+pip install -r requirements.txt
+```
+
+2. Set up environment variables:
+```bash
+GOOGLE_ADS_CLIENT_ID=your_client_id
+GOOGLE_ADS_CLIENT_SECRET=your_client_secret
+GOOGLE_ADS_DEVELOPER_TOKEN=your_developer_token
+GOOGLE_ADS_REFRESH_TOKEN=your_refresh_token
+GOOGLE_ADS_LOGIN_CUSTOMER_ID=your_login_customer_id
+```
+
+## Usage
+
+### Analyzing Creative Elements
+
+```python
+from services.creative_service import CreativeService
+
+# Initialize service
+creative_service = CreativeService(client, customer_id)
+
+# Analyze creatives
+results = creative_service.analyze_creative_elements(['creative_id_1', 'creative_id_2'])
+
+# Get recommendations
+recommendations = results['recommendations']
+```
+
+### Setting Up Creative Tests
+
+```python
+# Setup test
+test = creative_service.setup_creative_experiment(
+    ad_group_id='123456789',
+    elements={
+        'headlines': [
+            'Amazing Offer - 50% Off',
+            'Limited Time Deal - Save Now'
+        ],
+        'descriptions': [
+            'Shop our collection today.',
+            'Exclusive deals await.'
+        ]
+    },
+    confidence_level=0.95
+)
+
+# Monitor test results
+results = creative_service.monitor_creative_test(test)
+```
+
+## Best Practices
+
+1. **Sample Size**: Ensure sufficient data before making decisions (minimum 1000 impressions per variant)
+2. **Test Duration**: Run tests for at least 2 weeks to account for day-of-week variations
+3. **Significance Level**: Use 95% confidence level for most tests
+4. **Control Group**: Always include a control variant in tests
+5. **Isolation**: Test one element at a time for clear results
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a Pull Request
+
+## License
+
+MIT License - see LICENSE file for details
