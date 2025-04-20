@@ -1,3 +1,5 @@
+from services.ltv_bidding_service.ltv_bidding_service import LTVBiddingService
+from services.base_service import BaseService
 import sys
 import os
 import unittest
@@ -13,8 +15,6 @@ sys.modules["google.ads"] = MagicMock()
 sys.modules["google"] = MagicMock()
 
 # Create a direct import of the LTVBiddingService class with mocked base service
-from services.base_service import BaseService
-from services.ltv_bidding_service.ltv_bidding_service import LTVBiddingService
 
 
 # Define a simplified test case

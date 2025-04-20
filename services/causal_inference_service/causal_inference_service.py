@@ -11,11 +11,11 @@ import numpy as np
 from typing import Dict, Any, Optional, List, Tuple, Union
 from datetime import datetime, timedelta
 import pandas as pd
-import matplotlib.pyplot as plt # type: ignore
+import matplotlib.pyplot as plt  # type: ignore
 
 # Import causal inference libraries
 try:
-    from causalimpact import CausalImpact # type: ignore
+    from causalimpact import CausalImpact  # type: ignore
 
     CAUSAL_IMPACT_AVAILABLE = True
 except ImportError:
@@ -23,8 +23,8 @@ except ImportError:
     logging.warning("CausalImpact not available. Install with: pip install pycausalimpact")
 
 try:
-    import statsmodels.api as sm # type: ignore
-    import statsmodels.formula.api as smf # type: ignore
+    import statsmodels.api as sm  # type: ignore
+    import statsmodels.formula.api as smf  # type: ignore
 
     STATSMODELS_AVAILABLE = True
 except ImportError:
@@ -32,8 +32,8 @@ except ImportError:
     logging.warning("statsmodels not available. Install with: pip install statsmodels")
 
 try:
-    import econml # type: ignore
-    from econml.dml import CausalForestDML # type: ignore
+    import econml  # type: ignore
+    from econml.dml import CausalForestDML  # type: ignore
 
     ECONML_AVAILABLE = True
 except ImportError:
@@ -1009,7 +1009,7 @@ class CausalInferenceService(BaseService):
                         )
                         for i, diff in enumerate(sorted_diffs[:3]):  # Top 3 differences
                             insights.append(
-                                f"Feature '{diff['feature']}' is {abs(diff['pct_diff'])*100:.1f}% "
+                                f"Feature '{diff['feature']}' is {abs(diff['pct_diff']) * 100:.1f}% "
                                 + ("higher" if diff["pct_diff"] > 0 else "lower")
                                 + f" in the best segment ({diff['best_value']:.2f} vs {diff['worst_value']:.2f})"
                             )

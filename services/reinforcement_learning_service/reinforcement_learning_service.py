@@ -5,6 +5,7 @@ This module implements a reinforcement learning service that optimizes bidding s
 and campaign management through deep RL algorithms (PPO, DQN, and A3C).
 """
 
+import os
 import logging
 from typing import Dict, List, Any, Optional, Tuple, Union, Callable
 from datetime import datetime
@@ -130,8 +131,11 @@ class ReinforcementLearningService(BaseService):
             }
 
             # Create base environments
-            train_env_fn = lambda: GoogleAdsEnv(config={**env_config, "mode": "train"})
-            eval_env_fn = lambda: GoogleAdsEnv(config={**env_config, "mode": "eval"})
+            def train_env_fn():
+                return GoogleAdsEnv(config={**env_config, "mode": "train"})
+
+            def eval_env_fn():
+                return GoogleAdsEnv(config={**env_config, "mode": "eval"})
 
             # Vectorize the environments
             train_vec_env = DummyVecEnv([train_env_fn])
@@ -924,6 +928,3 @@ class ReinforcementLearningService(BaseService):
         except Exception as e:
             self.logger.error(f"Error in multi-campaign training: {str(e)}")
             raise
-
-
-import os

@@ -60,7 +60,7 @@ def run_optimization(days=90):
         )
 
         if not campaign_id:
-            print(f"  WARN: Skipping campaign {i+1} due to missing ID.")
+            print(f"  WARN: Skipping campaign {i + 1} due to missing ID.")
             continue
 
         try:
@@ -119,9 +119,9 @@ def run_optimization(days=90):
                                 "title": f"Error Processing Keyword Batch {j + 1} for Campaign {campaign_name}",
                                 "action_type": "ERROR",
                                 "entity_type": "system",
-                                "entity_id": f"campaign_{campaign_id}_batch_{j+1}",
+                                "entity_id": f"campaign_{campaign_id}_batch_{j + 1}",
                                 "change": f"Investigate batch processing error: {str(batch_e)}",
-                                "rationale": f"Processing failed for keyword batch {j+1} in campaign {campaign_id}.",
+                                "rationale": f"Processing failed for keyword batch {j + 1} in campaign {campaign_id}.",
                                 "status": "error",
                             }
                         )

@@ -702,7 +702,8 @@ class ContextualSignalService(BaseService):
                             5,
                             6,
                             8,
-                        ],  # January (post-holiday), May (summer prep), June (graduation), August (back to school)
+                            # January (post-holiday), May (summer prep), June (graduation), August (back to school)
+                        ],
                         "low": [2, 3, 4, 7, 9, 10],  # Other months
                     },
                     "travel": {
@@ -1148,7 +1149,7 @@ class ContextualSignalService(BaseService):
                                 applied_count += 1
                                 self.logger.info(
                                     f"Applied signal-based bid adjustment to keyword '{keyword}': "
-                                    f"${current_bid_micros/1000000:.2f} -> ${new_bid_micros/1000000:.2f}"
+                                    f"${current_bid_micros / 1000000:.2f} -> ${new_bid_micros / 1000000:.2f}"
                                 )
 
             # 7. Track and return results

@@ -5,6 +5,10 @@ This module provides data visualization capabilities to create charts, graphs,
 and interactive dashboards for analyzing Google Ads performance data.
 """
 
+from services.base_service import BaseService
+from matplotlib.ticker import FuncFormatter
+import matplotlib.dates as mdates
+import matplotlib.pyplot as plt
 import logging
 from typing import Dict, Any, Optional, List, Union
 from datetime import datetime, timedelta
@@ -14,11 +18,6 @@ import json
 import matplotlib
 
 matplotlib.use("Agg")  # Use non-interactive backend
-import matplotlib.pyplot as plt
-import matplotlib.dates as mdates
-from matplotlib.ticker import FuncFormatter
-
-from services.base_service import BaseService
 
 
 class DataVisualizationService(BaseService):

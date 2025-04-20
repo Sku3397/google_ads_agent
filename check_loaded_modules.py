@@ -33,7 +33,7 @@ try:
                     # Find the line with the deprecated field
                     for i, line in enumerate(source.split("\n")):
                         if "metrics.average_position" in line:
-                            print(f"Line {i+1}: {line.strip()}")
+                            print(f"Line {i + 1}: {line.strip()}")
                 else:
                     print("metrics.average_position not found in the source code")
             except Exception as e:

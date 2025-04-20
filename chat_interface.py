@@ -1,3 +1,9 @@
+import inspect
+import time
+import os
+import logging
+import sys
+from ads_api import GoogleAdsAPI
 from openai import OpenAI
 import re
 import json
@@ -6,12 +12,6 @@ import importlib
 import ads_api
 
 importlib.reload(ads_api)
-from ads_api import GoogleAdsAPI
-import sys
-import logging
-import os
-import time
-import inspect
 
 # Force a reload of the ads_api module to ensure we're using the latest version
 try:

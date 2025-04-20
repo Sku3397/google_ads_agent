@@ -1,3 +1,7 @@
+from chat_interface import ChatInterface
+from optimizer import AdsOptimizer
+from ads_api import GoogleAdsAPI
+from logger import AdsAgentLogger
 import unittest
 import sys
 import os
@@ -7,11 +11,6 @@ import re
 
 # Add project root to path to ensure imports work
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
-
-from logger import AdsAgentLogger
-from ads_api import GoogleAdsAPI
-from optimizer import AdsOptimizer
-from chat_interface import ChatInterface
 
 
 class TestGoogleAdsAgentComprehensive(unittest.TestCase):

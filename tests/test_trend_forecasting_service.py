@@ -2,6 +2,7 @@
 Unit tests for the Trend Forecasting Service
 """
 
+from services.trend_forecasting_service import TrendForecastingService
 import unittest
 from unittest.mock import MagicMock, patch
 import sys
@@ -16,8 +17,6 @@ import matplotlib.pyplot as plt
 
 # Add the parent directory to sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-
-from services.trend_forecasting_service import TrendForecastingService
 
 
 class TestTrendForecastingService(unittest.TestCase):

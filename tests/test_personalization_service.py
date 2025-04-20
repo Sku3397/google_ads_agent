@@ -4,6 +4,7 @@ Unit tests for the Personalization Service.
 This module contains tests for the PersonalizationService class and its methods.
 """
 
+from services.personalization_service import PersonalizationService
 import unittest
 import pandas as pd
 import numpy as np
@@ -16,8 +17,6 @@ from datetime import datetime, timedelta
 import sys
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from services.personalization_service import PersonalizationService
 
 
 class TestPersonalizationService(unittest.TestCase):

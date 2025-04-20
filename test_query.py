@@ -26,7 +26,7 @@ try:
         print("\nQUERY TEMPLATE FOUND:")
         print("-" * 80)
         for i, line in enumerate(query_template.split("\n")):
-            print(f"{i+1:3d} | {line}")
+            print(f"{i + 1:3d} | {line}")
         print("-" * 80)
 
         # Search for specific fields
@@ -44,7 +44,7 @@ try:
                 # Find the line
                 for i, line in enumerate(query_template.split("\n")):
                     if field in line:
-                        print(f"  → Line {i+1}: {line.strip()}")
+                        print(f"  → Line {i + 1}: {line.strip()}")
             else:
                 print(f"❌ NOT FOUND: {field}")
 

@@ -2,6 +2,7 @@
 Unit tests for the Contextual Signal Service
 """
 
+from services.contextual_signal_service import ContextualSignalService, ContextualSignal
 import unittest
 from unittest.mock import MagicMock, patch
 import sys
@@ -15,8 +16,6 @@ import requests
 
 # Add the parent directory to sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-
-from services.contextual_signal_service import ContextualSignalService, ContextualSignal
 
 
 class TestContextualSignalService(unittest.TestCase):

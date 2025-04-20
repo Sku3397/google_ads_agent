@@ -151,7 +151,7 @@ class SelfPlayService(BaseService):
             self.agent_population = {}
 
             for i in range(self.population_size):
-                agent_id = f"agent_{i+1}"
+                agent_id = f"agent_{i + 1}"
 
                 # Create agent with slightly different hyperparameters
                 hyperparams = self._generate_agent_hyperparameters()

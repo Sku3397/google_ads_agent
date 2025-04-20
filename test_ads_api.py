@@ -68,13 +68,13 @@ try:
                 source = inspect.getsource(method)
                 logger.info("Method source code:")
                 for i, line in enumerate(source.split("\n")):
-                    logger.info(f"Line {i+1}: {line}")
+                    logger.info(f"Line {i + 1}: {line}")
                 # Check for the deprecated field
                 if "metrics.average_position" in source:
                     logger.warning("Found deprecated metrics.average_position in the source code!")
                     for i, line in enumerate(source.split("\n")):
                         if "metrics.average_position" in line:
-                            logger.error(f"Line {i+1}: {line.strip()}")
+                            logger.error(f"Line {i + 1}: {line.strip()}")
             except Exception as e:
                 logger.error(f"Error getting source code: {e}")
                 traceback.print_exc()
