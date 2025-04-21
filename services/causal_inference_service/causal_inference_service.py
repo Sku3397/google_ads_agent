@@ -12,7 +12,7 @@ from typing import Dict, Any, Optional, List, Tuple, Union
 from datetime import datetime, timedelta
 import pandas as pd
 
-# Import causal inference libraries
+# Import necessary libraries for causal inference
 try:
     from causalimpact import CausalImpact  # type: ignore
 
@@ -39,7 +39,8 @@ except ImportError:
     ECONML_AVAILABLE = False
     logging.warning("EconML not available. Install with: pip install econml")
 
-from services.base_service import BaseService
+# Correct relative import for BaseService
+from ..base_service import BaseService
 
 logger = logging.getLogger(__name__)
 
@@ -321,16 +322,18 @@ class CausalInferenceService(BaseService):
         all_data = pd.concat([treatment_data[[metric]], control_data], axis=1)
         return all_data, None
 
-    def _convert_period_dates(
-        self, period: List[Union[str, datetime]]
-    ) -> List[datetime]:
+    def _convert_period_dates(self, period: List[Union[str, datetime]]) -> List[datetime]:
         """Convert period start/end dates to datetime objects if they are strings."""
         if isinstance(period[0], str):
             return [pd.to_datetime(date) for date in period]
         return period  # type: ignore
 
     def _run_and_extract_causal_impact(
-        self, all_data: pd.DataFrame, pre_period_dt: list, post_period_dt: list, model_args: Optional[Dict]
+        self,
+        all_data: pd.DataFrame,
+        pre_period_dt: list,
+        post_period_dt: list,
+        model_args: Optional[Dict],
     ) -> Tuple[Optional[CausalImpact], Optional[Dict[str, str]]]:
         """Run CausalImpact and extract results."""
         try:
@@ -344,16 +347,15 @@ class CausalInferenceService(BaseService):
             self.logger.error(f"Error running CausalImpact model: {str(e)}")
             return None, {"status": "error", "message": f"CausalImpact execution failed: {str(e)}"}
 
-    def _save_causal_impact_plot(
-        self, ci: CausalImpact, metric: str
-    ) -> Optional[str]:
+    def _save_causal_impact_plot(self, ci: CausalImpact, metric: str) -> Optional[str]:
         """Save the CausalImpact plot if output directory is configured."""
         plot_path = None
         output_dir = self.config.get("output_dir")
         if output_dir:
             try:
                 # Ensure matplotlib is imported locally if needed for plotting
-                import matplotlib.pyplot as plt # type: ignore
+                import matplotlib.pyplot as plt  # type: ignore
+
                 plot = ci.plot()
                 plot_filename = (
                     f"{metric}_causal_impact_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
@@ -362,15 +364,21 @@ class CausalInferenceService(BaseService):
                 # Ensure directory exists
                 os.makedirs(output_dir, exist_ok=True)
                 plt.savefig(plot_path)
-                plt.close(plot) # Close the plot object
+                plt.close(plot)  # Close the plot object
                 self.logger.info(f"Saved CausalImpact plot to: {plot_path}")
             except Exception as e:
                 self.logger.error(f"Failed to save CausalImpact plot: {str(e)}")
-                plot_path = None # Reset path if saving failed
+                plot_path = None  # Reset path if saving failed
         return plot_path
 
     def _format_causal_impact_results(
-        self, ci: CausalImpact, analysis_id: str, pre_period: list, post_period: list, metric: str, plot_path: Optional[str]
+        self,
+        ci: CausalImpact,
+        analysis_id: str,
+        pre_period: list,
+        post_period: list,
+        metric: str,
+        plot_path: Optional[str],
     ) -> Dict[str, Any]:
         """Format the final results dictionary from CausalImpact output."""
         summary_data = ci.summary_data
@@ -437,15 +445,15 @@ class CausalInferenceService(BaseService):
         )
         if data_prep_error:
             return data_prep_error
-        if all_data is None: # Should not happen if error is None, but check anyway
-             return {"status": "error", "message": "Data preparation failed unexpectedly."}
+        if all_data is None:  # Should not happen if error is None, but check anyway
+            return {"status": "error", "message": "Data preparation failed unexpectedly."}
 
         # 3. Convert Period Dates
         try:
             pre_period_dt = self._convert_period_dates(pre_period)
             post_period_dt = self._convert_period_dates(post_period)
         except Exception as e:
-             return {"status": "error", "message": f"Invalid period date format: {str(e)}"}
+            return {"status": "error", "message": f"Invalid period date format: {str(e)}"}
 
         # 4. Run CausalImpact Model
         ci, model_run_error = self._run_and_extract_causal_impact(
@@ -453,7 +461,7 @@ class CausalInferenceService(BaseService):
         )
         if model_run_error:
             return model_run_error
-        if ci is None: # Should not happen if error is None
+        if ci is None:  # Should not happen if error is None
             return {"status": "error", "message": "Model execution failed unexpectedly."}
 
         # 5. Save Plot (Optional)
@@ -462,21 +470,23 @@ class CausalInferenceService(BaseService):
         # 6. Format and Store Results
         analysis_id = f"ci_{metric}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         analysis_results = self._format_causal_impact_results(
-             ci, analysis_id, pre_period, post_period, metric, plot_path
+            ci, analysis_id, pre_period, post_period, metric, plot_path
         )
 
         # Store the analysis (assuming self.analyses exists)
-        if hasattr(self, 'analyses') and isinstance(self.analyses, dict):
-             self.analyses[analysis_id] = analysis_results
+        if hasattr(self, "analyses") and isinstance(self.analyses, dict):
+            self.analyses[analysis_id] = analysis_results
         else:
-             self.logger.warning("Attribute 'analyses' not found or not a dict. Cannot store results.")
+            self.logger.warning(
+                "Attribute 'analyses' not found or not a dict. Cannot store results."
+            )
 
         self.logger.info(
-             f"Causal impact analysis completed. Absolute effect: {analysis_results['estimated_absolute_effect']:.2f}, p-value: {analysis_results['p_value']:.4f}"
+            f"Causal impact analysis completed. Absolute effect: {analysis_results['estimated_absolute_effect']:.2f}, p-value: {analysis_results['p_value']:.4f}"
         )
 
         # 7. Track Execution
-        if hasattr(self, '_track_execution'): # Check if method exists
+        if hasattr(self, "_track_execution"):  # Check if method exists
             self._track_execution(start_time, success=True)
         return analysis_results
 

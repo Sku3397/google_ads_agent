@@ -42,7 +42,8 @@ except ImportError:
         BAYESIAN_MODELING_AVAILABLE = False
         logging.warning("PyMC not available, advanced Bayesian bandits disabled")
 
-from services.base_service import BaseService
+# Correct relative import for BaseService
+from ..base_service import BaseService
 
 logger = logging.getLogger(__name__)
 

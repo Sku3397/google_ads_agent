@@ -3,7 +3,7 @@
 from typing import Dict, List, Optional, Any
 from datetime import datetime
 import logging
-from services.base_service import BaseService
+from ..base_service import BaseService
 
 logger = logging.getLogger(__name__)
 

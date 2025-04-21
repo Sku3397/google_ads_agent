@@ -16,9 +16,37 @@ exclude = '''
 )/
 '''
 
+[project]
+name = "google-ads-agent"
+version = "0.1.0" # Placeholder version
+description = "Autonomous Google Ads Management System"
+# Add other metadata like authors, license, readme, etc., if desired
+# requires-python = ">=3.9"
+
 [tool.isort]
 profile = "black"
 line_length = 100
+
+[tool.setuptools.packages.find]
+where = ["."]  # Root directory to search
+include = [
+    "services*", # Include the services package and subpackages
+    "ads_api.py",
+    "config.py",
+    "optimizer.py",
+    "scheduler.py",
+    "main.py", # Include relevant top-level modules
+    "base_service.py", # Needed by services
+    # Add other essential top-level .py files if needed
+]
+exclude = [
+    "tests*",
+    "data*",
+    "logs*",
+    "test_logs*",
+    "scripts*", # Assuming scripts are not part of the installable package
+    "*.__pycache__",
+] # Exclude tests, data, logs, etc.
 
 [build-system]
 requires = ["setuptools>=42", "wheel"]

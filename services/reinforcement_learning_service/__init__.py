@@ -6,12 +6,11 @@ bidding optimization, budget allocation, and strategic decision-making
 in Google Ads campaigns.
 """
 
-from services.reinforcement_learning_service.reinforcement_learning_service import (
-    ReinforcementLearningService,
-    AdsEnvironment,
-)
+# This file makes the reinforcement_learning_service directory a Python package.
 
-__all__ = ["ReinforcementLearningService", "AdsEnvironment"]
+from .reinforcement_learning_service import ReinforcementLearningService
+
+__all__ = ["ReinforcementLearningService"]
 
 # Service metadata
 SERVICE_NAME = "ReinforcementLearningService"

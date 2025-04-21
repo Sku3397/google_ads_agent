@@ -666,14 +666,17 @@ agent.save_custom_patterns(patterns)
 
 ### CausalInferenceService
 
-The CausalInferenceService provides robust causal inference capabilities to measure the true impact of campaign changes and experiments on key performance metrics.
+The CausalInferenceService provides robust causal inference capabilities to measure the true impact of campaign changes and experiments on key performance metrics. It has been refactored for improved maintainability.
 
 **Key Features:**
-- Causal impact analysis using Google's CausalImpact package
+- Causal impact analysis using Google's CausalImpact package (requires `pip install pycausalimpact`)
+- Difference-in-Differences (DiD) analysis (requires `pip install statsmodels`)
+- Synthetic Control method implementation (requires `pip install statsmodels`)
+- Uplift modeling using Causal Forest (requires `pip install econml`)
+- A/B Experiment design and analysis placeholder
 - Pre/post intervention analysis
 - Control campaign comparison
 - Statistical significance testing
-- Confidence interval calculation
 
 **Example Usage:**
 ```python
@@ -702,8 +705,34 @@ if results['is_significant']:
 config = {
     'min_pre_period_days': 30,  # Days of data before change
     'min_post_period_days': 14,  # Days of data after change
-    'significance_level': 0.05   # Statistical significance threshold
+    'significance_level': 0.05,   # Statistical significance threshold
+    'default_model_args': {'niter': 1000, 'standardize_data': True}, # Args for CausalImpact
+    'output_dir': 'output/causal_inference' # Directory to save plots
 }
+```
+
+### SimulationService
+
+Service for simulating changes to Google Ads campaigns and predicting their impact.
+
+**Key Features:**
+- Simulate bid changes for keywords (`simulate_bid_changes`)
+- Generate performance forecasts based on historical averages (`get_performance_forecast`)
+- Placeholders for budget and target CPA/ROAS simulations
+
+**Example Usage:**
+```python
+# Simulate a 20% bid increase for a keyword
+simulation_results = agent.services["simulation"].simulate_bid_changes(
+    keyword_ids=["customers/123/adGroupCriteria/456~789"], # Use actual criterion resource name
+    bid_modifiers=[1.2]
+)
+
+# Get a 30-day forecast for a campaign
+forecast = agent.services["simulation"].get_performance_forecast(
+    campaign_id="123456789",
+    days_to_forecast=30
+)
 ```
 
 ## Development

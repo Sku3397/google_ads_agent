@@ -15,6 +15,7 @@ import os
 from sklearn.ensemble import IsolationForest
 from sklearn.preprocessing import StandardScaler
 from scipy import stats
+import random
 
 from services.base_service import BaseService
 
@@ -850,3 +851,87 @@ class AnomalyDetectionService(BaseService):
             ],
             "count": len(self.models),
         }
+
+    def _check_for_anomaly(self, data_segment: pd.Series) -> bool:
+        """Check a data segment for anomalies using IQR."""
+        # Ensure data_segment is a valid Series with numeric data
+        if not isinstance(data_segment, pd.Series) or not pd.api.types.is_numeric_dtype(
+            data_segment
+        ):
+            self.logger.warning("Invalid data segment for anomaly check. Skipping.")
+            return False
+
+        if data_segment.isnull().all():
+            self.logger.warning("Data segment contains only NaNs. Skipping anomaly check.")
+            return False
+
+        # Calculate Q1 and Q3
+        q1 = data_segment.quantile(0.25)
+        q3 = data_segment.quantile(0.75)
+        iqr = q3 - q1
+
+        # Define bounds
+        lower_bound = q1 - 1.5 * iqr
+        upper_bound = q3 + 1.5 * iqr
+
+        # Check if the last point is an anomaly
+        last_point = data_segment.iloc[-1]
+        is_anomaly = last_point < lower_bound or last_point > upper_bound
+
+        if is_anomaly:
+            self.logger.info(
+                f"Anomaly detected: {last_point:.2f} (bounds: {lower_bound:.2f} - {upper_bound:.2f})"
+            )
+            return True
+        return False
+
+    def _diagnose_anomaly(self, anomaly_id: str, data: pd.DataFrame) -> Dict[str, Any]:
+        """Diagnose the root cause of an anomaly (placeholder)."""
+        self.logger.info(f"Diagnosing anomaly {anomaly_id}")
+        # Placeholder diagnosis
+        possible_causes = [
+            "Sudden increase in competition",
+            "Tracking issue",
+            "Seasonality",
+            "External event impact",
+            "Recent campaign change",
+        ]
+        diagnosis = {
+            "possible_cause": random.choice(possible_causes),
+            "confidence": random.uniform(0.5, 0.9),
+            "supporting_data": {
+                "change_history": "(Placeholder) No significant changes found",
+                "competitor_metrics": "(Placeholder) Slight increase in competitor impression share",
+            },
+        }
+        return diagnosis
+
+    def _generate_recommendations(self, anomaly_id: str, diagnosis: Dict[str, Any]) -> List[str]:
+        """Generate recommendations based on anomaly diagnosis (placeholder)."""
+        self.logger.info(f"Generating recommendations for anomaly {anomaly_id}")
+        # Placeholder recommendations
+        if "competition" in diagnosis["possible_cause"].lower():
+            return [
+                "Increase bids slightly on top keywords",
+                "Review ad copy for competitive advantages",
+            ]
+        elif "tracking" in diagnosis["possible_cause"].lower():
+            return ["Verify conversion tracking setup", "Check for website errors"]
+        else:
+            return ["Monitor performance closely", "Review recent campaign changes"]
+
+    def _save_anomaly_details(self, anomaly: Dict[str, Any]):
+        """Save anomaly details for tracking."""
+        filename = f"anomaly_{anomaly['id']}.json"
+        self.save_data(anomaly, filename, directory="history/anomalies")
+
+    def get_past_anomalies(self, days: int = 30) -> List[Dict[str, Any]]:
+        """Retrieve past anomalies from history."""
+        # Placeholder - needs implementation to load from saved files
+        self.logger.warning("get_past_anomalies is not fully implemented.")
+        return []
+
+    def run(self, **kwargs: Any) -> None:
+        """Run the anomaly detection service."""
+        self.logger.info("Running Anomaly Detection Service...")
+        self.detect_performance_anomalies()

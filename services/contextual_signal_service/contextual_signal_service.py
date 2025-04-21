@@ -15,7 +15,8 @@ import os
 import json
 import time
 
-from services.base_service import BaseService
+# Correct relative import for BaseService
+from ..base_service import BaseService
 
 
 @dataclass

@@ -370,7 +370,7 @@ class AdsOptimizer:
             result += f"- Conversion Rate: {campaign.get('conversion_rate', 0):.2%}\n"
             result += f"- Cost: {campaign.get('cost', 0)} {campaign.get('currency', 'USD')}\n"
             result += f"- Average CPC: {campaign.get('average_cpc', 0)} {campaign.get('currency', 'USD')}\n"
-            result += f"- ROAS: {campaign.get('roas', 0):.2f}\n\n"
+            result += f"- ROAS: {campaign.get('roas', 0):.2f}\n"
 
         return result
 
@@ -474,7 +474,7 @@ class AdsOptimizer:
                 result += f"   CTR: {kw.get('ctr', 0):.2%}\n"
                 result += f"   Conversions: {kw.get('conversions', 0)}\n"
                 result += f"   Cost: {kw.get('cost', 0)} {kw.get('currency', 'USD')}\n"
-                result += f"   Current Bid: ${kw.get('current_bid', 0):.2f}\n\n"
+                result += f"   Current Bid: ${kw.get('current_bid', 0):.2f}\n"
 
         # Worst performing keywords
         if include_worst and worst_keywords:
@@ -490,7 +490,7 @@ class AdsOptimizer:
                 result += f"   CTR: {kw.get('ctr', 0):.2%}\n"
                 result += f"   Conversions: {kw.get('conversions', 0)}\n"
                 result += f"   Cost: {kw.get('cost', 0)} {kw.get('currency', 'USD')}\n"
-                result += f"   Current Bid: ${kw.get('current_bid', 0):.2f}\n\n"
+                result += f"   Current Bid: ${kw.get('current_bid', 0):.2f}\n"
 
         return result
 
@@ -629,7 +629,7 @@ class AdsOptimizer:
                     "recommended_bid": "Suggested new bid amount in USD (for ADJUST_BID type)",
                     "rationale": "Why this change is recommended",
                     "details": "Specific details about the recommendation",
-                    "priority": "HIGH|MEDIUM|LOW" 
+                    "priority": "HIGH|MEDIUM|LOW"
                 }}
             ],
             "ad_copy_recommendations": [
@@ -653,7 +653,7 @@ class AdsOptimizer:
             "budget_recommendations": {{
                 "campaigns_needing_adjustment": ["Campaign 1", "Campaign 2"],
                 "recommended_changes": "Specific budget recommendations",
-                "rationale": "Why these changes would improve performance" 
+                "rationale": "Why these changes would improve performance"
             }},
             "overall_assessment": "Brief paragraph summarizing the account's performance and top priorities"
         }}

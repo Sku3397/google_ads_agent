@@ -5,9 +5,9 @@ This service provides tools for analyzing and optimizing landing pages
 to improve conversion rates and user experience.
 """
 
-from services.landing_page_optimization_service.landing_page_optimization_service import (
-    LandingPageOptimizationService,
-)
+# This file makes the landing_page_optimization_service directory a Python package.
+
+from .landing_page_optimization_service import LandingPageOptimizationService
 
 __all__ = ["LandingPageOptimizationService"]
 

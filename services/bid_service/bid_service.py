@@ -14,9 +14,19 @@ import logging
 import os
 import json
 
-from services.base_service import BaseService
+# Correct relative import for BaseService
+from ..base_service import BaseService
 from google.ads.googleads.client import GoogleAdsClient
 from google.ads.googleads.errors import GoogleAdsException
+
+# Import MetaLearningService if available for strategy selection
+try:
+    from services.meta_learning_service import MetaLearningService
+
+    META_LEARNING_AVAILABLE = True
+except ImportError:
+    META_LEARNING_AVAILABLE = False
+    MetaLearningService = None  # Define as None if not available
 
 logger = logging.getLogger(__name__)
 
@@ -26,16 +36,23 @@ class BidService(BaseService):
     Bid Service for managing and optimizing keyword and campaign bids.
     """
 
-    def __init__(self, client: GoogleAdsClient, customer_id: str):
+    def __init__(
+        self,
+        client: GoogleAdsClient,
+        customer_id: str,
+        meta_learning_service: Optional[MetaLearningService] = None,
+    ):
         """
         Initialize the bid service.
 
         Args:
             client: The Google Ads API client
             customer_id: The Google Ads customer ID
+            meta_learning_service: Optional instance of MetaLearningService
         """
         super().__init__(client, customer_id)
         self.ad_group_criterion_service = self.client.get_service("AdGroupCriterionService")
+        self.meta_learning_service = meta_learning_service
 
         # Default thresholds and settings
         self.min_data_points = 50  # Minimum data points required for confidence
@@ -88,9 +105,41 @@ class BidService(BaseService):
             Dictionary with bid optimization results
         """
         start_time = datetime.now()
+        context = {  # Define context for meta-learning
+            "campaign_id": campaign_id,
+            "time_period_days": days,
+            # Add other relevant context factors (e.g., market conditions, overall account goals)
+            "account_goal": self.config.get("account_main_goal", "maximize_conversions"),
+        }
+        recommended_strategy = strategy
+        recommended_params = {}
+
+        # Recommend strategy using MetaLearningService if available
+        if self.meta_learning_service and META_LEARNING_AVAILABLE:
+            available_strategies = [
+                "performance_based",
+                "target_cpa",
+                "target_roas",
+                "position_based",
+            ]
+            recommendation = self.meta_learning_service.recommend_strategy(
+                service_name="bid", context=context, available_strategies=available_strategies
+            )
+            if not recommendation.get("error"):
+                recommended_strategy = recommendation.get("recommended_strategy", strategy)
+                recommended_params = recommendation.get("estimated_parameters", {})
+                self.logger.info(
+                    f"MetaLearning recommended strategy: {recommended_strategy} with params: {recommended_params}"
+                )
+            else:
+                self.logger.warning(
+                    f"MetaLearning strategy recommendation failed: {recommendation.get('error')}"
+                )
 
         try:
-            self.logger.info(f"Starting keyword bid optimization using '{strategy}' strategy")
+            self.logger.info(
+                f"Starting keyword bid optimization using '{recommended_strategy}' strategy"
+            )
 
             # Fetch keyword performance data
             keywords = self._get_keyword_performance_data(days, campaign_id)
@@ -101,11 +150,11 @@ class BidService(BaseService):
                 return {"status": "failed", "message": "No keyword data available"}
 
             # Select optimization strategy based on input
-            if strategy == "target_cpa":
+            if recommended_strategy == "target_cpa":
                 bid_recommendations = self._optimize_bids_target_cpa(keywords)
-            elif strategy == "target_roas":
+            elif recommended_strategy == "target_roas":
                 bid_recommendations = self._optimize_bids_target_roas(keywords)
-            elif strategy == "position_based":
+            elif recommended_strategy == "position_based":
                 bid_recommendations = self._optimize_bids_position_based(keywords)
             else:  # Default to performance-based
                 bid_recommendations = self._optimize_bids_performance_based(keywords)
@@ -119,7 +168,7 @@ class BidService(BaseService):
                 "timestamp": datetime.now().isoformat(),
                 "days_analyzed": days,
                 "campaign_id": campaign_id,
-                "strategy": strategy,
+                "strategy": recommended_strategy,
                 "total_keywords_analyzed": len(keywords),
                 "total_recommendations": len(final_recommendations),
                 "bid_recommendations": final_recommendations,
@@ -133,9 +182,19 @@ class BidService(BaseService):
             )
 
             self.logger.info(
-                f"Keyword bid optimization completed with {len(final_recommendations)} recommendations"
+                f"Keyword bid optimization completed with {len(final_recommendations)} recommendations using strategy '{recommended_strategy}'"
             )
             self._track_execution(start_time, True)
+
+            # Record execution for meta-learning
+            if self.meta_learning_service and META_LEARNING_AVAILABLE:
+                self.meta_learning_service.record_strategy_execution(
+                    service_name="bid",
+                    strategy_name=recommended_strategy,
+                    context=context,
+                    parameters=recommended_params,  # Record params used (could be default or meta-learned)
+                    results=result,  # Pass the results dict
+                )
 
             return result
 

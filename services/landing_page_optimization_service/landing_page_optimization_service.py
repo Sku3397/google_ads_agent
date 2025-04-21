@@ -16,7 +16,10 @@ import requests
 from urllib.parse import urlparse
 import time
 
-from services.base_service import BaseService
+# Correct relative import for BaseService
+from ..base_service import BaseService
+
+logger = logging.getLogger(__name__)
 
 
 class LandingPageOptimizationService(BaseService):

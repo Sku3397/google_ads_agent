@@ -18,7 +18,27 @@ from statsmodels.tsa.holtwinters import ExponentialSmoothing
 from scipy import stats
 import joblib
 
-from services.base_service import BaseService
+# Import forecasting libraries
+try:
+    from prophet import Prophet  # type: ignore
+
+    PROPHET_AVAILABLE = True
+except ImportError:
+    PROPHET_AVAILABLE = False
+    logging.warning("Prophet not available. Install with: pip install prophet")
+
+try:
+    import statsmodels.api as sm  # type: ignore
+
+    STATSMODELS_AVAILABLE = True
+except ImportError:
+    STATSMODELS_AVAILABLE = False
+    logging.warning("Statsmodels not available. Install with: pip install statsmodels")
+
+# Correct relative import for BaseService
+from ..base_service import BaseService
+
+logger = logging.getLogger(__name__)
 
 
 class ForecastingService(BaseService):

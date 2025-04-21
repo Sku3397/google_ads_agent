@@ -5,7 +5,7 @@ This module provides data visualization capabilities to create charts, graphs,
 and interactive dashboards for analyzing Google Ads performance data.
 """
 
-from services.base_service import BaseService
+from ..base_service import BaseService
 from matplotlib.ticker import FuncFormatter
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
@@ -18,6 +18,8 @@ import json
 import matplotlib
 
 matplotlib.use("Agg")  # Use non-interactive backend
+
+logger = logging.getLogger(__name__)
 
 
 class DataVisualizationService(BaseService):
@@ -720,3 +722,85 @@ class DataVisualizationService(BaseService):
         else:
             self.logger.warning(f"Unknown action: {action}")
             return {"status": "error", "message": f"Unknown action: {action}"}
+
+    def create_trend_chart(
+        self, data: pd.DataFrame, date_col: str, value_cols: List[str], title: str, filename: Optional[str] = None
+    ) -> str:
+        """
+        Create a trend chart showing performance over time.
+
+        Args:
+            data: DataFrame with time series data
+            date_col: Name of the date column
+            value_cols: List of column names with values to plot
+            title: Chart title
+            filename: Optional filename to save the chart
+
+        Returns:
+            Path to the saved chart file
+        """
+        self.logger.info(f"Creating trend chart: {title}")
+        fig, ax = plt.subplots(figsize=(12, 6))
+
+        # Convert date column to datetime if not already
+        if not pd.api.types.is_datetime64_any_dtype(data[date_col]):
+            data[date_col] = pd.to_datetime(data[date_col])
+
+        # Plot each value column over time
+        for value_col in value_cols:
+            ax.plot(data[date_col], data[value_col], label=value_col)
+
+        # Add labels and title
+        ax.set_ylabel("Performance Metric (e.g., CTR, Conversion Rate)")
+        ax.set_xlabel("Date")
+        ax.set_title(f"Data Visualization: {title}")
+        ax.legend()
+
+        # Improve y-axis formatting
+        ax.yaxis.set_major_formatter(FuncFormatter(lambda y, _: f"{y:.2f}"))
+
+        # Save the plot
+        os.makedirs("reports", exist_ok=True)
+        filename = filename or f"{title.replace(' ', '_').lower()}.png"
+        path = os.path.join("reports", filename)
+        plt.tight_layout()
+        plt.savefig(path)
+        plt.close()
+        self.logger.info(f"Chart saved to {path}")
+        return path
+
+    def create_distribution_chart(
+        self, data: pd.DataFrame, value_col: str, title: str, filename: Optional[str] = None
+    ) -> str:
+        """
+        Create a distribution chart showing the distribution of a specific metric.
+
+        Args:
+            data: DataFrame with time series data
+            value_col: Name of the column with values to plot
+            title: Chart title
+            filename: Optional filename to save the chart
+
+        Returns:
+            Path to the saved chart file
+        """
+        self.logger.info(f"Creating distribution chart: {title}")
+        fig, ax = plt.subplots(figsize=(10, 6))
+
+        # Plot histogram or KDE
+        sns.histplot(data[value_col], kde=True, ax=ax)
+
+        # Add labels and title
+        ax.set_ylabel("Frequency")
+        ax.set_xlabel(value_col)
+        ax.set_title(f"Data Visualization: {title}")
+
+        # Save the plot
+        os.makedirs("reports", exist_ok=True)
+        filename = filename or f"{title.replace(' ', '_').lower()}.png"
+        path = os.path.join("reports", filename)
+        plt.tight_layout()
+        plt.savefig(path)
+        plt.close()
+        self.logger.info(f"Chart saved to {path}")
+        return path

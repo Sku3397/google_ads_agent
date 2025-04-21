@@ -5,7 +5,9 @@ This service helps analyze and optimize ads for voice search queries,
 which tend to be longer, more conversational, and question-oriented.
 """
 
-from services.voice_query_service.voice_query_service import VoiceQueryService
+# This file makes the voice_query_service directory a Python package.
+
+from .voice_query_service import VoiceQueryService
 
 __all__ = ["VoiceQueryService"]
 

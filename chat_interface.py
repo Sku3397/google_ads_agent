@@ -965,3 +965,437 @@ to get more data or analytical insights.
             error_message = f"I encountered an error: {str(e)}"
             self.add_message("assistant", error_message)
             return error_message, None
+
+    def _get_serp_data(self, query: str) -> dict:
+        """Placeholder for getting SERP data."""
+        return {"organic_results": [{"title": "Example SERP Result"}], "ads": []}
+
+    def process_user_message(self, message: str, user_id: str = "default_user") -> str:
+        """
+        Process a user message and generate a response.
+
+        Args:
+            message (str): User's message
+            user_id (str): User identifier
+
+        Returns:
+            str: Generated response
+        """
+        self.add_message("user", message)
+        self.logger.info(f"User message received: {message}")
+
+        # Check for direct commands
+        command = self.detect_command(message)
+
+        if command:
+            self.logger.info(f"Detected command: {command}")
+            params = self.parse_parameters(message, command)
+
+            try:
+                if command == "fetch_data":
+                    days = params.get("days", 30)
+                    self.logger.info(f"Fetching campaign data for last {days} days")
+                    campaigns = self.ads_api.get_campaign_performance(days_ago=days)
+                    self.latest_campaigns = campaigns  # Update stored data
+                    self.last_data_refresh = datetime.now()
+                    response = f"I've fetched data for {len(campaigns)} campaigns from the last {days} days. Here's a summary of your account performance:\n\n"
+
+                    # Add a brief summary of the campaigns
+                    total_spend = sum(c["cost"] for c in campaigns)
+                    total_conversions = sum(c["conversions"] for c in campaigns)
+                    avg_ctr = sum(c["ctr"] for c in campaigns) / len(campaigns) if campaigns else 0
+
+                    response += f"• Total Spend: ${total_spend:.2f}\n"
+                    response += f"• Total Conversions: {total_conversions:.1f}\n"
+                    response += f"• Average CTR: {avg_ctr:.2f}%\n\n"
+
+                    response += "Would you like me to analyze this data and provide optimization recommendations?"
+
+                    return response, {"command": command, "result": campaigns}
+
+                elif command == "fetch_keywords":
+                    days = params.get("days", 30)
+                    self.logger.info(f"Fetching keyword data for last {days} days")
+                    # Ensure we also have campaign data
+                    campaigns = self.latest_campaigns
+                    if not campaigns:
+                        campaigns = self.ads_api.get_campaign_performance(days_ago=days)
+                        self.latest_campaigns = campaigns
+
+                    try:
+                        self.logger.info("About to call get_keyword_performance")
+
+                        keywords = self.ads_api.get_keyword_performance(days_ago=days)
+                        self.latest_keywords = keywords
+                        self.last_data_refresh = datetime.now()
+
+                        response = f"I've fetched data for {len(keywords)} keywords across {len(campaigns)} campaigns from the last {days} days."
+
+                        # Add a brief summary of top keywords
+                        if keywords:
+                            # Find keywords with conversions
+                            converting_keywords = [
+                                k for k in keywords if k.get("conversions", 0) > 0
+                            ]
+                            converting_keywords.sort(
+                                key=lambda k: k.get("conversions", 0), reverse=True
+                            )
+
+                            if converting_keywords:
+                                response += "\n\nTop converting keywords:\n"
+                                for i, keyword in enumerate(converting_keywords[:3], 1):
+                                    response += f"{i}. \"{keyword['keyword_text']}\" - {keyword['conversions']:.1f} conversions, ${keyword['cost']:.2f} spent\n"
+
+                            # Find keywords with high spend and no conversions
+                            wasted_keywords = [
+                                k
+                                for k in keywords
+                                if k.get("cost", 0) > 50 and k.get("conversions", 0) < 1
+                            ]
+                            wasted_keywords.sort(key=lambda k: k.get("cost", 0), reverse=True)
+
+                            if wasted_keywords:
+                                response += "\n\nKeywords with high spend and no conversions:\n"
+                                for i, keyword in enumerate(wasted_keywords[:3], 1):
+                                    response += f"{i}. \"{keyword['keyword_text']}\" - ${keyword['cost']:.2f} spent, {keyword['clicks']} clicks\n"
+
+                        response += "\n\nWould you like me to analyze these keywords and provide optimization suggestions?"
+
+                        return response, {"command": command, "result": keywords}
+                    except Exception as e:
+                        error_message = f"Error fetching keyword data: {str(e)}"
+                        self.logger.exception(error_message)
+                        # Return a helpful error message
+                        response = f"I encountered an error while trying to fetch your keyword data: {str(e)}\n\n"
+                        response += "This could be due to an API error or a deprecated field. I'll work on fixing this issue."
+                        return response, {"command": command, "error": error_message}
+
+                elif command == "analyze_campaigns":
+                    days = params.get("days", 30)
+                    self.logger.info(f"Analyzing campaign data for last {days} days")
+                    # Ensure we have fresh campaign data
+                    campaigns, _ = self.ensure_data_context(days, fetch_keywords=False)
+
+                    if not campaigns:
+                        return (
+                            "I don't have any campaign data to analyze. Let me fetch that for you first.",
+                            None,
+                        )
+
+                    suggestions = self.optimizer.get_optimization_suggestions(campaigns)
+
+                    if isinstance(suggestions, list):
+                        suggestion_count = len(suggestions)
+                        response = f"I've completed the campaign analysis for the last {days} days and have {suggestion_count} optimization suggestions for you.\n\n"
+
+                        # Add a brief summary of top 3 suggestions
+                        if suggestion_count > 0:
+                            response += "Here are the top 3 recommendations:\n\n"
+                            for i, sugg in enumerate(suggestions[:3], 1):
+                                response += f"{i}. {sugg.get('action_type', 'ACTION')}: {sugg.get('title', 'Untitled')}\n"
+                                if "entity_type" in sugg and "entity_id" in sugg:
+                                    response += (
+                                        f"   • For {sugg['entity_type']} '{sugg['entity_id']}'\n"
+                                    )
+                                if "change" in sugg:
+                                    response += f"   • {sugg['change']}\n"
+                                response += "\n"
+
+                        response += "You can view all the detailed suggestions in the Optimization tab of the application."
+                    else:
+                        response = f"I've analyzed your campaigns but couldn't generate specific suggestions: {suggestions}"
+
+                    return response, {"command": command, "result": suggestions}
+
+                elif command == "analyze_keywords":
+                    days = params.get("days", 30)
+                    self.logger.info(f"Analyzing keyword data for last {days} days")
+                    # Ensure we have fresh data
+                    campaigns, keywords = self.ensure_data_context(days, fetch_keywords=True)
+
+                    if not campaigns:
+                        return (
+                            "I don't have any campaign data to analyze. Let me fetch that for you first.",
+                            None,
+                        )
+
+                    if not keywords:
+                        # Try to fetch keywords if not available
+                        try:
+                            self.logger.info(
+                                "About to call get_keyword_performance in analyze_keywords"
+                            )
+
+                            keywords = self.ads_api.get_keyword_performance(days_ago=days)
+                            self.latest_keywords = keywords
+                            self.last_data_refresh = datetime.now()
+                        except Exception as e:
+                            self.logger.error(f"Error fetching keyword data: {str(e)}")
+                            return (
+                                f"I couldn't fetch keyword data: {str(e)}. Please check your API connection.",
+                                None,
+                            )
+
+                    try:
+                        suggestions = self.optimizer.get_optimization_suggestions(
+                            campaigns, keywords
+                        )
+
+                        if isinstance(suggestions, list):
+                            keyword_suggestions = [
+                                s for s in suggestions if s.get("entity_type") == "keyword"
+                            ]
+                            suggestion_count = len(keyword_suggestions)
+
+                            response = f"I've completed the keyword analysis for the last {days} days and have {suggestion_count} keyword-specific optimization suggestions for you.\n\n"
+
+                            # Add a brief summary of top 3 suggestions
+                            if suggestion_count > 0:
+                                response += "Here are the top 3 keyword recommendations:\n\n"
+                                for i, sugg in enumerate(keyword_suggestions[:3], 1):
+                                    response += f"{i}. {sugg.get('action_type', 'ACTION')}: {sugg.get('title', 'Untitled')}\n"
+                                    if "entity_id" in sugg:
+                                        response += f"   • For keyword '{sugg['entity_id']}'\n"
+                                    if "change" in sugg:
+                                        response += f"   • {sugg['change']}\n"
+                                    response += "\n"
+
+                            response += "You can view all the detailed suggestions in the Optimization tab of the application."
+                        else:
+                            response = f"I've analyzed your keywords but couldn't generate specific suggestions: {suggestions}"
+
+                        return response, {"command": command, "result": suggestions}
+                    except Exception as e:
+                        error_message = (
+                            f"Error generating keyword optimization suggestions: {str(e)}"
+                        )
+                        self.logger.exception(error_message)
+                        return (
+                            f"I encountered an error while analyzing keywords: {str(e)}. Let me fix this issue.",
+                            None,
+                        )
+
+                elif command == "comprehensive_analysis":
+                    days = params.get("days", 30)
+                    self.logger.info(f"Running comprehensive analysis for last {days} days")
+                    # Force a refresh of both campaigns and keywords
+                    campaigns, keywords = self.ensure_data_context(
+                        days, force_refresh=True, fetch_keywords=True
+                    )
+
+                    if not campaigns:
+                        return (
+                            "I couldn't fetch campaign data for analysis. Please check your API connection.",
+                            None,
+                        )
+
+                    if not keywords:
+                        return (
+                            "I fetched campaign data but couldn't get keyword data. Running campaign-only analysis.",
+                            None,
+                        )
+
+                    suggestions = self.optimizer.get_optimization_suggestions(campaigns, keywords)
+
+                    if isinstance(suggestions, list):
+                        suggestion_count = len(suggestions)
+                        campaign_suggestions = len(
+                            [s for s in suggestions if s.get("entity_type") == "campaign"]
+                        )
+                        keyword_suggestions = len(
+                            [s for s in suggestions if s.get("entity_type") == "keyword"]
+                        )
+
+                        response = f"I've completed a comprehensive account analysis for the last {days} days and found {suggestion_count} total optimization opportunities:\n\n"
+                        response += f"• {campaign_suggestions} campaign-level suggestions\n"
+                        response += f"• {keyword_suggestions} keyword-level suggestions\n\n"
+
+                        # Add a brief summary of top suggestions by type
+                        if suggestion_count > 0:
+                            response += "Here are my top recommendations:\n\n"
+
+                            # Get top 2 of each type
+                            campaign_suggs = [
+                                s for s in suggestions if s.get("entity_type") == "campaign"
+                            ][:2]
+                            keyword_suggs = [
+                                s for s in suggestions if s.get("entity_type") == "keyword"
+                            ][:2]
+
+                            for i, sugg in enumerate(campaign_suggs + keyword_suggs, 1):
+                                response += f"{i}. {sugg.get('action_type', 'ACTION')} for {sugg.get('entity_type', 'entity')}: {sugg.get('title', 'Untitled')}\n"
+                                if "entity_id" in sugg:
+                                    response += f"   • Target: '{sugg['entity_id']}'\n"
+                                if "change" in sugg:
+                                    response += f"   • Change: {sugg['change']}\n"
+                                response += "\n"
+
+                        response += "You can view all the detailed suggestions in the Optimization tab of the application."
+                    else:
+                        response = f"I attempted a comprehensive analysis but couldn't generate specific suggestions: {suggestions}"
+
+                    return response, {"command": command, "result": suggestions}
+
+                elif command == "keyword_bid_analysis":
+                    days = params.get("days", 30)
+                    self.logger.info(f"Running keyword bid analysis for last {days} days")
+                    # Force a refresh of both campaigns and keywords to ensure we have fresh data
+                    campaigns, keywords = self.ensure_data_context(
+                        days, force_refresh=True, fetch_keywords=True
+                    )
+
+                    if not campaigns:
+                        return (
+                            "I couldn't fetch campaign data for analysis. Please check your API connection.",
+                            None,
+                        )
+
+                    if not keywords:
+                        return (
+                            "I couldn't fetch keyword data. Please check your API connection and ensure you have keywords in your account.",
+                            None,
+                        )
+
+                    if len(keywords) == 0:
+                        return (
+                            "I fetched data but found 0 keywords. This might be because you don't have any ENABLED keywords in ENABLED ad groups and campaigns.",
+                            None,
+                        )
+
+                    self.logger.info(
+                        f"Sending {len(keywords)} keywords to Gemini for bid analysis..."
+                    )
+                    suggestions = self.optimizer.get_optimization_suggestions(campaigns, keywords)
+
+                    if isinstance(suggestions, list):
+                        # Filter for bid adjustment suggestions only
+                        bid_suggestions = [
+                            s for s in suggestions if s.get("action_type") == "BID_ADJUSTMENT"
+                        ]
+                        suggestion_count = len(bid_suggestions)
+
+                        if suggestion_count > 0:
+                            # Group by adjustment type (increase vs decrease)
+                            increase_bids = [
+                                s
+                                for s in bid_suggestions
+                                if "increase" in s.get("change", "").lower()
+                            ]
+                            decrease_bids = [
+                                s
+                                for s in bid_suggestions
+                                if "decrease" in s.get("change", "").lower()
+                            ]
+
+                            response = f"I've analyzed your keywords and found {suggestion_count} bid adjustment opportunities:\n\n"
+                            response += f"• {len(increase_bids)} keywords that could benefit from bid increases\n"
+                            response += f"• {len(decrease_bids)} keywords that could benefit from bid decreases\n\n"
+
+                            # Show top recommendations of each type
+                            if increase_bids:
+                                response += "**Top keywords for bid increases:**\n\n"
+                                for i, sugg in enumerate(increase_bids[:3], 1):
+                                    keyword = sugg.get("entity_id", "unknown keyword")
+                                    change = sugg.get("change", "unknown change")
+                                    rationale = sugg.get("rationale", "based on performance data")
+                                    response += f'{i}. "{keyword}" - {change}\n'
+                                    response += f"   • Rationale: {rationale}\n\n"
+
+                            if decrease_bids:
+                                response += "**Top keywords for bid decreases:**\n\n"
+                                for i, sugg in enumerate(decrease_bids[:3], 1):
+                                    keyword = sugg.get("entity_id", "unknown keyword")
+                                    change = sugg.get("change", "unknown change")
+                                    rationale = sugg.get("rationale", "based on performance data")
+                                    response += f'{i}. "{keyword}" - {change}\n'
+                                    response += f"   • Rationale: {rationale}\n\n"
+
+                            response += "You can view all the detailed bid suggestions in the Suggestions tab. Would you like me to automatically apply these bid changes?"
+                        else:
+                            response = "I analyzed your keywords but didn't find any specific bid adjustment opportunities at this time. This could be because your keywords already have optimal bids, or there isn't enough performance data to make confident recommendations."
+                    else:
+                        response = f"I analyzed your keywords but couldn't generate specific bid suggestions: {suggestions}"
+
+                    return response, {"command": command, "result": suggestions}
+
+                elif command == "help":
+                    help_text = """
+I can help you optimize your Google Ads campaigns. Here are commands you can use:
+
+• **Campaign Data**: "Fetch campaign data for the last 14 days"
+• **Keyword Data**: "Fetch keyword data for the last 30 days"
+• **Campaign Analysis**: "Analyze my campaigns and give optimization suggestions"
+• **Keyword Analysis**: "Analyze my keywords and provide bid suggestions"
+• **Bid Analysis**: "Run keyword bid analysis" or "Suggest keyword bid adjustments"
+• **Full Account Analysis**: "Run a comprehensive account analysis"
+• **Custom Query**: "Find campaigns with low CTR" or "Which keywords need bid adjustments?"
+• **Scheduler**: "Schedule daily campaign analysis at 9am"
+
+You can also ask me questions about PPC strategy, ad optimization, or anything related to your Google Ads performance.
+"""
+                    return help_text, {"command": command, "result": "help_displayed"}
+
+                elif command == "schedule":
+                    response = (
+                        f"Setting up scheduled task with parameters: {json.dumps(params, indent=2)}"
+                    )
+                    return response, {"command": command, "result": params}
+
+            except Exception as e:
+                self.logger.exception(f"Error processing command '{command}': {str(e)}")
+                error_message = f"I encountered an error processing your request: {str(e)}"
+                return error_message, {"command": command, "error": str(e)}
+
+        # For non-command messages, use GPT to generate a response
+        try:
+            # Ensure we have data context - auto-refresh if older than threshold
+            campaigns, keywords = self.ensure_data_context(fetch_keywords=False)
+            data_summary = self.get_data_summary(campaigns, keywords)
+
+            # Create messages including chat history for context
+            messages = self.chat_history[-10:]  # Use last 10 messages for context
+
+            # Add a system message at the beginning with data context
+            system_message = f"""
+You are an expert Google Ads PPC specialist assistant helping to optimize the user's advertising campaigns.
+You've worked in digital advertising for over 10 years and have managed millions in ad spend.
+
+CURRENT ACCOUNT DATA:
+{data_summary}
+
+RESPONSE GUIDELINES:
+1. Base all responses on the specific performance data shown above
+2. Provide data-driven, specific advice rather than generic statements
+3. When appropriate, mention specific campaigns, keywords or metrics from the data
+4. If the user asks about something not covered in the available data, suggest how they could get that data
+5. For optimization questions, focus on actionable steps based on the most significant opportunities in the data
+6. If you're not sure about something, admit it and suggest how to find out
+
+The user can perform actions like "fetch campaign data", "analyze keywords", or "run comprehensive analysis" 
+to get more data or analytical insights.
+"""
+
+            messages = [{"role": "system", "content": system_message}] + messages
+
+            # Combine messages into a single prompt for Gemini
+            full_prompt = "\n".join([f"{m['role'].upper()}: {m['content']}" for m in messages])
+
+            # Call Gemini API
+            try:
+                # Use the optimizer's generate_content method instead of direct model access
+                response_text = self.optimizer.generate_content(full_prompt)
+                self.logger.info(
+                    "Successfully generated chat response using optimizer.generate_content"
+                )
+            except Exception as e:
+                self.logger.error(f"Error generating chat response: {str(e)}")
+                response_text = f"I encountered an error: {str(e)}"
+
+            self.add_message("assistant", response_text)
+            return response_text, None
+
+        except Exception as e:
+            self.logger.exception(f"Error generating chat response: {str(e)}")
+            error_message = f"I encountered an error: {str(e)}"
+            self.add_message("assistant", error_message)
+            return error_message, None

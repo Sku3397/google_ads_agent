@@ -688,3 +688,29 @@ class PersonalizationService(BaseService):
 
         self._track_execution(start_time, success)
         return success
+
+    def create_segment_visualization(self, data: pd.DataFrame, feature_cols: List[str], segment_col: str, title: str, filename: Optional[str] = None) -> str:
+        """
+        Create a visualization for user segments based on clustering results.
+
+        Args:
+            data: DataFrame with user data
+            feature_cols: List of features used for clustering
+            segment_col: Name of the column containing segment labels
+            title: Chart title
+            filename: Optional filename to save the chart
+
+        Returns:
+            Path to the saved chart file
+        """
+        self.logger.info(f"Creating segment visualization: {title}")
+
+        if not UMAP_AVAILABLE or not HDBSCAN_AVAILABLE:
+            self.logger.warning(
+                "UMAP and/or HDBSCAN are not available. Unable to create segment visualization."
+            )
+            return ""
+
+        # Implementation of the method
+        # This is a placeholder and should be replaced with the actual implementation
+        return ""

@@ -8,8 +8,14 @@ It leverages AI to generate ad content and analyze performance patterns.
 import logging
 from typing import Dict, Any, Optional, List, Union
 from datetime import datetime, timedelta
+from google.ads.googleads.errors import GoogleAdsException
+import numpy as np
+import pandas as pd
 
-from services.base_service import BaseService
+# Correct relative import for BaseService
+from ..base_service import BaseService
+
+logger = logging.getLogger(__name__)
 
 
 class CreativeService(BaseService):

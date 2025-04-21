@@ -15,7 +15,10 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional, Callable, Union
 from pathlib import Path
 
-from services.base_service import BaseService
+# Correct relative import for BaseService
+from ..base_service import BaseService
+
+logger = logging.getLogger(__name__)
 
 
 class SchedulerService(BaseService):
@@ -453,52 +456,73 @@ class SchedulerService(BaseService):
                     "timestamp": datetime.now().isoformat(),
                 }
 
-        elif task_type == 'update_ltv_predictions':
+        elif task_type == "update_ltv_predictions":
             if "ltv_bidding" in self.services:
                 self.logger.info(f"Executing LTV prediction update task with params: {parameters}")
                 result = self.services["ltv_bidding"].update_ltv_predictions(**parameters)
             else:
                 result = {"status": "error", "message": "LTVBiddingService not available."}
-        elif task_type == 'apply_ltv_bids':
+        elif task_type == "apply_ltv_bids":
             if "ltv_bidding" in self.services:
                 self.logger.info(f"Executing LTV bid application task with params: {parameters}")
                 result = self.services["ltv_bidding"].apply_ltv_bidding_strategy(**parameters)
             else:
                 result = {"status": "error", "message": "LTVBiddingService not available."}
         # Handle potential simulation task
-        elif task_type == 'run_simulation':
+        elif task_type == "run_simulation":
             if "simulation" in self.services:
                 self.logger.info(f"Executing simulation task with params: {parameters}")
                 # Example: Run a specific simulation type based on params
-                sim_type = parameters.get('simulation_type', 'forecast')
-                entity_id = parameters.get('entity_id')
-                if sim_type == 'forecast' and entity_id:
+                sim_type = parameters.get("simulation_type", "forecast")
+                entity_id = parameters.get("entity_id")
+                if sim_type == "forecast" and entity_id:
                     result = self.services["simulation"].get_performance_forecast(
-                        campaign_id=entity_id, # Assuming entity_id is campaign_id for forecast
-                        days_to_forecast=parameters.get('days_to_forecast', 30),
-                        lookback_days=parameters.get('lookback_days', 90)
+                        campaign_id=entity_id,  # Assuming entity_id is campaign_id for forecast
+                        days_to_forecast=parameters.get("days_to_forecast", 30),
+                        lookback_days=parameters.get("lookback_days", 90),
                     )
-                elif sim_type == 'bid_simulation' and entity_id:
+                elif sim_type == "bid_simulation" and entity_id:
                     # Placeholder for calling bid simulation if needed via scheduler
                     # result = self.services["simulation"].simulate_bid_changes(...)
-                    result = {"status": "placeholder", "message": "Bid simulation via scheduler TBD"}
+                    result = {
+                        "status": "placeholder",
+                        "message": "Bid simulation via scheduler TBD",
+                    }
                 else:
-                    result = {"status": "error", "message": f"Invalid simulation parameters: {parameters}"}
+                    result = {
+                        "status": "error",
+                        "message": f"Invalid simulation parameters: {parameters}",
+                    }
             else:
                 result = {"status": "error", "message": "SimulationService not available."}
-        else: # Default case if task_type is not recognized
+        # Handle meta-learning analysis task
+        elif task_type == "analyze_meta_learning_patterns":
+            if "meta_learning" in self.services:
+                self.logger.info(f"Executing meta-learning analysis task with params: {parameters}")
+                analysis_type = parameters.get("analysis_type", "cross_service")
+                if analysis_type == "cross_service":
+                    result = self.services["meta_learning"].analyze_cross_service_patterns()
+                # Add more analysis types as needed (e.g., hyperparameter tuning review)
+                else:
+                    result = {
+                        "status": "error",
+                        "message": f"Unknown meta-learning analysis type: {analysis_type}",
+                    }
+            else:
+                result = {"status": "error", "message": "MetaLearningService not available."}
+        else:  # Default case if task_type is not recognized
             self.logger.warning(f"Task type '{task_type}' is not recognized.")
             result = {"status": "error", "message": f"Unknown task type: {task_type}"}
 
         # Default error if task type is known but service is missing or logic fails
         # This condition might need refinement based on how result is handled above
         if result is None:
-             # Logged inside specific handlers usually, maybe remove this generic one?
-             pass # Or set a generic error if not handled above
-             # result = {
-             #      "status": "error",
-             #      "message": f"Error executing task {task_name} ({task_id}): Unknown error",
-             # }
+            # Logged inside specific handlers usually, maybe remove this generic one?
+            pass  # Or set a generic error if not handled above
+            # result = {
+            #      "status": "error",
+            #      "message": f"Error executing task {task_name} ({task_id}): Unknown error",
+            # }
 
         return result
 
@@ -752,3 +776,77 @@ class SchedulerService(BaseService):
         )
 
         return task
+
+    # Example methods to register common optimization tasks easily
+
+    def register_daily_bid_optimization(
+        self,
+        hour: int = 1,
+        minute: int = 0,
+        strategy: str = "performance_based",
+        days: int = 7,  # Default to analyzing last 7 days for daily optimization
+        parameters: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """Register a daily task to optimize keyword bids."""
+        task_params = {"days": days, "strategy": strategy}
+        if parameters:
+            task_params.update(parameters)
+
+        return self.add_task(
+            task_name="Daily Keyword Bid Optimization",
+            task_type="optimize_bids",
+            schedule_type="daily",
+            schedule_time=f"{hour:02d}:{minute:02d}",
+            parameters=task_params,
+        )
+
+    def register_weekly_keyword_discovery(
+        self,
+        hour: int = 2,
+        minute: int = 0,
+        day_of_week: str = "monday",  # e.g., 'monday', 'tuesday'
+        parameters: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """Register a weekly task to discover new keywords."""
+        return self.add_task(
+            task_name="Weekly Keyword Discovery",
+            task_type="discover_keywords",
+            schedule_type="weekly",
+            schedule_time=f"{day_of_week} {hour:02d}:{minute:02d}",
+            parameters=parameters,
+        )
+
+    def register_monthly_reporting(
+        self,
+        day_of_month: int = 1,
+        hour: int = 3,
+        minute: int = 0,
+        parameters: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """Register a monthly task to generate performance reports."""
+        return self.add_task(
+            task_name="Monthly Performance Reporting",
+            task_type="generate_report",
+            schedule_type="monthly",
+            schedule_time=f"{day_of_month} {hour:02d}:{minute:02d}",
+            parameters=parameters,
+        )
+
+    def register_meta_learning_analysis(
+        self,
+        hour: int = 4,  # Example: Run daily at 4 AM
+        minute: int = 0,
+        analysis_type: str = "cross_service",
+        parameters: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """Register a periodic task to run meta-learning analysis."""
+        task_params = {"analysis_type": analysis_type}
+        if parameters:
+            task_params.update(parameters)
+        return self.add_task(
+            task_name=f"Periodic Meta-Learning Analysis ({analysis_type})",
+            task_type="analyze_meta_learning_patterns",
+            schedule_type="daily",  # Or weekly/monthly depending on desired frequency
+            schedule_time=f"{hour:02d}:{minute:02d}",
+            parameters=task_params,
+        )

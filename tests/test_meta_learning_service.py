@@ -16,6 +16,7 @@ import tempfile
 import shutil
 from datetime import datetime
 from unittest.mock import patch, MagicMock
+import pickle
 
 from services.meta_learning_service import MetaLearningService
 

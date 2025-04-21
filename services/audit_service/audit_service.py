@@ -10,8 +10,12 @@ from datetime import datetime
 import pandas as pd
 import logging
 import os
+from google.ads.googleads.errors import GoogleAdsException
 
-from services.base_service import BaseService
+# Correct relative import for BaseService
+from ..base_service import BaseService
+
+logger = logging.getLogger(__name__)
 
 
 class AuditService(BaseService):

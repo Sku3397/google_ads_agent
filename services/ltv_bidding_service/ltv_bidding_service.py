@@ -19,7 +19,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error, r2_score
 
-from services.base_service import BaseService
+from ..base_service import BaseService
 
 
 class LTVBiddingService(BaseService):

@@ -225,10 +225,14 @@ class SimulationService(BaseService):
                     total_impressions += row.metrics.impressions
                     total_cost_micros += row.metrics.cost_micros
                     total_conversions += row.metrics.conversions
-                    actual_days += 1  # Assuming one row per day, needs refinement if granularity changes
+                    actual_days += (
+                        1  # Assuming one row per day, needs refinement if granularity changes
+                    )
 
             if actual_days == 0:
-                logger.warning(f"No historical data found for campaign {campaign_id} in the last {lookback_days} days.")
+                logger.warning(
+                    f"No historical data found for campaign {campaign_id} in the last {lookback_days} days."
+                )
                 return {"error": "No historical data found"}
 
             # Calculate daily averages
@@ -245,7 +249,7 @@ class SimulationService(BaseService):
                 "estimated_total_cost": avg_daily_cost * days_to_forecast,
                 "estimated_total_conversions": avg_daily_conversions * days_to_forecast,
                 "based_on_lookback_days": lookback_days,
-                "based_on_actual_days_data": actual_days  # Info about data used
+                "based_on_actual_days_data": actual_days,  # Info about data used
             }
 
             logger.info(f"Forecast generated for campaign {campaign_id}: {forecast}")

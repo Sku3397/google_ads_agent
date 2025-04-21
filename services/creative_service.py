@@ -7,6 +7,11 @@ from google.ads.googleads.errors import GoogleAdsException
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
+import pandas as pd
+from scipy.stats import ttest_ind  # type: ignore
+from .base_service import BaseService  # Use '.' because it's in the same directory
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -33,7 +38,7 @@ class CreativeTest:
     results: Optional[Dict[str, Any]]
 
 
-class CreativeService:
+class CreativeService(BaseService):
     """Service for managing ad creative optimization and testing."""
 
     def __init__(self, client: GoogleAdsClient, customer_id: str):

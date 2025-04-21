@@ -5,7 +5,10 @@ This service implements various bandit algorithms for dynamic budget allocation,
 creative testing, and keyword optimization.
 """
 
-from services.bandit_service.bandit_service import BanditService, BanditAlgorithm
+# This file makes the bandit_service directory a Python package.
+
+# Define the public API for this package
+from .bandit_service import BanditService, BanditAlgorithm
 
 __all__ = ["BanditService", "BanditAlgorithm"]
 

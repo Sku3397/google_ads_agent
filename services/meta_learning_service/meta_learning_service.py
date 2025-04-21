@@ -157,6 +157,8 @@ class MetaLearningService(BaseService):
         if strategy_key not in self.performance_history:
             self.performance_history[strategy_key] = []
 
+        # Limit history size per strategy if needed
+        max_history = self.config.get("meta_learning_max_history_per_strategy", 100)
         self.performance_history[strategy_key].append(
             {
                 "timestamp": record["timestamp"],
@@ -165,6 +167,9 @@ class MetaLearningService(BaseService):
                 "metrics": record["metrics"],
             }
         )
+        self.performance_history[strategy_key] = self.performance_history[strategy_key][
+            -max_history:
+        ]
 
         # Save updated data
         self._save_models()
@@ -218,65 +223,67 @@ class MetaLearningService(BaseService):
         self, service_name: str, context: Dict[str, Any], available_strategies: List[str]
     ) -> Dict[str, Any]:
         """
-        Recommend the best strategy for a given context based on historical performance.
+        Recommend the best strategy for a given service and context based on historical performance.
 
         Args:
-            service_name: Name of the service requesting a strategy recommendation
-            context: Current context for which to recommend a strategy
-            available_strategies: List of available strategy names
+            service_name: Name of the service requesting a strategy
+            context: Current context (e.g., campaign details, market conditions)
+            available_strategies: List of strategies the service can execute
 
         Returns:
-            Dictionary with recommended strategy and parameters
+            Dictionary with recommended strategy name and estimated parameters
         """
-        self.logger.info(f"Recommending strategy for {service_name}")
+        self.logger.info(f"Recommending strategy for {service_name} in context: {context}")
 
-        # Get relevant history for each available strategy
         strategy_scores = {}
-        strategy_params = {}
+        best_params_for_strategy = {}
 
-        for strategy in available_strategies:
-            strategy_key = f"{service_name}_{strategy}"
+        for strategy_name in available_strategies:
+            strategy_key = f"{service_name}_{strategy_name}"
+            if strategy_key in self.performance_history:
+                strategy_data = self.performance_history[strategy_key]
+                # Calculate score based on historical performance in similar contexts
+                score = self._calculate_strategy_score(strategy_data, context)
+                strategy_scores[strategy_name] = score
 
-            # Skip if no history exists for this strategy
-            if strategy_key not in self.performance_history:
-                strategy_scores[strategy] = 0  # Default score for new strategies
-                strategy_params[strategy] = {}  # Default parameters
-                continue
+                # Find best parameters based on historical success in similar contexts
+                best_params = self._get_best_parameters(strategy_data, context)
+                best_params_for_strategy[strategy_name] = best_params
+            else:
+                # Assign a default score or handle new strategies (e.g., exploration)
+                strategy_scores[strategy_name] = 0.5  # Default score for unknown strategies
+                best_params_for_strategy[strategy_name] = {}  # Default empty params
 
-            # Calculate strategy score based on historical performance
-            strategy_data = self.performance_history[strategy_key]
-            strategy_scores[strategy] = self._calculate_strategy_score(strategy_data, context)
-
-            # Get best parameters
-            strategy_params[strategy] = self._get_best_parameters(strategy_data, context)
-
-        # Select best strategy
+        # Select the strategy with the highest score
         if not strategy_scores:
-            # No strategies found, return default
+            # If no history, maybe default to a standard strategy or random choice
             recommended_strategy = available_strategies[0] if available_strategies else None
-            best_params = {}
-            score = 0
+            recommended_params = {}
+            self.logger.warning(
+                "No historical data for any available strategies. Choosing default."
+            )
         else:
-            # Find strategy with highest score
-            recommended_strategy = max(strategy_scores.items(), key=lambda x: x[1])[0]
-            best_params = strategy_params[recommended_strategy]
-            score = strategy_scores[recommended_strategy]
+            # Sort strategies by score
+            recommended_strategy = max(strategy_scores, key=strategy_scores.get)
+            recommended_params = best_params_for_strategy.get(recommended_strategy, {})
 
-        recommendation = {
-            "service": service_name,
+        if not recommended_strategy:
+            return {"error": "No strategies available or could be recommended."}
+
+        self.logger.info(
+            f"Recommended strategy: {recommended_strategy} with params: {recommended_params}"
+        )
+
+        # TODO: Integrate more advanced meta-learning models here (e.g., predict performance)
+        # meta_model_prediction = self._predict_performance_with_meta_model(service_name, recommended_strategy, context, recommended_params)
+
+        return {
             "recommended_strategy": recommended_strategy,
-            "parameters": best_params,
-            "confidence_score": score,
-            "alternatives": [
-                {"strategy": s, "score": strategy_scores[s], "parameters": strategy_params[s]}
-                for s in available_strategies
-                if s != recommended_strategy
-            ],
-            "timestamp": datetime.now().isoformat(),
+            "estimated_parameters": recommended_params,
+            "confidence_score": strategy_scores.get(
+                recommended_strategy, 0.0
+            ),  # Example confidence
         }
-
-        self.logger.info(f"Recommended strategy: {recommended_strategy} with score {score:.2f}")
-        return recommendation
 
     def _calculate_strategy_score(
         self, strategy_data: List[Dict[str, Any]], current_context: Dict[str, Any]

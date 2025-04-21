@@ -12,8 +12,12 @@ import pandas as pd
 import logging
 import os
 import json
+from google.ads.googleads.errors import GoogleAdsException
 
-from services.base_service import BaseService
+# Correct relative import for BaseService
+from ..base_service import BaseService
+
+logger = logging.getLogger(__name__)
 
 
 class KeywordService(BaseService):

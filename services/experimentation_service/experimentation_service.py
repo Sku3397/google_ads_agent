@@ -14,25 +14,31 @@ from typing import Dict, List, Optional, Any, Union
 import pandas as pd
 from statsmodels.stats.proportion import proportions_ztest
 from scipy import stats
+import logging
+
+# Correct relative import for BaseService
+from ..base_service import BaseService
+
+logger = logging.getLogger(__name__)
 
 
-class ExperimentationService:
+# Add BaseService inheritance
+class ExperimentationService(BaseService):
     """Service for managing Google Ads experiments."""
 
-    def __init__(self, ads_api, optimizer=None, config=None, logger=None):
+    def __init__(self, ads_client: Any, config: Dict[str, Any]):
         """
         Initialize the ExperimentationService.
 
         Args:
-            ads_api: Google Ads API client
-            optimizer: Optimizer for experiment parameters
-            config: Configuration settings
-            logger: Logger instance
+            ads_client: The Google Ads API client.
+            config: Configuration dictionary.
         """
-        self.ads_api = ads_api
-        self.optimizer = optimizer
-        self.config = config or {}
-        self.logger = logger
+        # Correct call to super().__init__
+        super().__init__(ads_api=ads_client, config=config)
+        self.logger.info("ExperimentationService initialized.")
+        # Set default values from config or use hardcoded defaults
+        self.default_duration_days = self.config.get("default_experiment_duration", 14)
 
         # Ensure experiment data directory exists
         self.data_dir = os.path.join(

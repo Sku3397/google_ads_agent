@@ -5,6 +5,8 @@ This module provides functionality for scraping search engine results pages (SER
 to analyze competitor positions, ad copy, and organic search results.
 """
 
-from services.serp_scraper_service.serp_scraper_service import SERPScraperService
+# This file makes the serp_scraper_service directory a Python package.
+
+from .serp_scraper_service import SERPScraperService
 
 __all__ = ["SERPScraperService"]

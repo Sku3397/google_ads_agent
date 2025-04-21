@@ -1,7 +1,6 @@
-# services/reporting_service/reporting_service.py
 import logging
 from typing import Dict, Any, List
-from services.base_service import BaseService
+from ..base_service import BaseService
 
 logger = logging.getLogger(__name__)
 

@@ -6,7 +6,9 @@ discovering optimal strategies in Google Ads campaigns through competitive
 self-play techniques.
 """
 
-from services.self_play_service.self_play_service import SelfPlayService
+# This file makes the self_play_service directory a Python package.
+
+from .self_play_service import SelfPlayService
 
 __all__ = ["SelfPlayService"]
 
