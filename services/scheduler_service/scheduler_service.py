@@ -453,12 +453,54 @@ class SchedulerService(BaseService):
                     "timestamp": datetime.now().isoformat(),
                 }
 
-        # Placeholder result
-        return {
-            "status": "success",
-            "message": f"Executed task of type {task_type}",
-            "timestamp": datetime.now().isoformat(),
-        }
+        elif task_type == 'update_ltv_predictions':
+            if "ltv_bidding" in self.services:
+                self.logger.info(f"Executing LTV prediction update task with params: {parameters}")
+                result = self.services["ltv_bidding"].update_ltv_predictions(**parameters)
+            else:
+                result = {"status": "error", "message": "LTVBiddingService not available."}
+        elif task_type == 'apply_ltv_bids':
+            if "ltv_bidding" in self.services:
+                self.logger.info(f"Executing LTV bid application task with params: {parameters}")
+                result = self.services["ltv_bidding"].apply_ltv_bidding_strategy(**parameters)
+            else:
+                result = {"status": "error", "message": "LTVBiddingService not available."}
+        # Handle potential simulation task
+        elif task_type == 'run_simulation':
+            if "simulation" in self.services:
+                self.logger.info(f"Executing simulation task with params: {parameters}")
+                # Example: Run a specific simulation type based on params
+                sim_type = parameters.get('simulation_type', 'forecast')
+                entity_id = parameters.get('entity_id')
+                if sim_type == 'forecast' and entity_id:
+                    result = self.services["simulation"].get_performance_forecast(
+                        campaign_id=entity_id, # Assuming entity_id is campaign_id for forecast
+                        days_to_forecast=parameters.get('days_to_forecast', 30),
+                        lookback_days=parameters.get('lookback_days', 90)
+                    )
+                elif sim_type == 'bid_simulation' and entity_id:
+                    # Placeholder for calling bid simulation if needed via scheduler
+                    # result = self.services["simulation"].simulate_bid_changes(...)
+                    result = {"status": "placeholder", "message": "Bid simulation via scheduler TBD"}
+                else:
+                    result = {"status": "error", "message": f"Invalid simulation parameters: {parameters}"}
+            else:
+                result = {"status": "error", "message": "SimulationService not available."}
+        else: # Default case if task_type is not recognized
+            self.logger.warning(f"Task type '{task_type}' is not recognized.")
+            result = {"status": "error", "message": f"Unknown task type: {task_type}"}
+
+        # Default error if task type is known but service is missing or logic fails
+        # This condition might need refinement based on how result is handled above
+        if result is None:
+             # Logged inside specific handlers usually, maybe remove this generic one?
+             pass # Or set a generic error if not handled above
+             # result = {
+             #      "status": "error",
+             #      "message": f"Error executing task {task_name} ({task_id}): Unknown error",
+             # }
+
+        return result
 
     def _schedule_task(self, task: Dict[str, Any]):
         """
