@@ -11,7 +11,6 @@ import numpy as np
 from typing import Dict, Any, Optional, List, Tuple, Union
 from datetime import datetime, timedelta
 import pandas as pd
-import matplotlib.pyplot as plt  # type: ignore
 
 # Import causal inference libraries
 try:
@@ -274,35 +273,10 @@ class CausalInferenceService(BaseService):
             logger.error(f"Error running causal impact analysis: {str(e)}")
             raise
 
-    def measure_treatment_effect(
-        self,
-        pre_period: List[str],
-        post_period: List[str],
-        control_data: pd.DataFrame,
-        treatment_data: pd.DataFrame,
-        metric: str,
-        model_args: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
-        """
-        Measure the causal impact of an intervention (e.g., a campaign change)
-        using Google's CausalImpact package.
-
-        Args:
-            pre_period: [start_date, end_date] for the pre-intervention period.
-            post_period: [start_date, end_date] for the post-intervention period.
-            control_data: DataFrame with time series data for control group(s).
-                          Must have a datetime index and columns for relevant metrics.
-            treatment_data: DataFrame with time series data for the treated group.
-                            Must have a datetime index and a column for the target metric.
-            metric: The name of the metric column in treatment_data to analyze.
-            model_args: Optional arguments to pass to the CausalImpact model.
-
-        Returns:
-            Dictionary containing the causal impact analysis summary.
-        """
-        start_time = datetime.now()
-        self.logger.info(f"Measuring causal impact for metric '{metric}'...")
-
+    def _validate_treatment_inputs(
+        self, pre_period: List[str], post_period: List[str]
+    ) -> Optional[Dict[str, str]]:
+        """Validate inputs for measure_treatment_effect."""
         if not CAUSAL_IMPACT_AVAILABLE:
             error_msg = (
                 "CausalImpact package not available. Install with: pip install pycausalimpact"
@@ -310,7 +284,6 @@ class CausalInferenceService(BaseService):
             self.logger.error(error_msg)
             return {"status": "error", "message": error_msg}
 
-        # Validate inputs
         if not isinstance(pre_period, list) or len(pre_period) != 2:
             return {
                 "status": "error",
@@ -322,119 +295,189 @@ class CausalInferenceService(BaseService):
                 "status": "error",
                 "message": "post_period must be a list of [start_date, end_date]",
             }
+        return None
 
+    def _prepare_causal_impact_data(
+        self, treatment_data: pd.DataFrame, control_data: pd.DataFrame, metric: str
+    ) -> Tuple[Optional[pd.DataFrame], Optional[Dict[str, str]]]:
+        """Prepare data for CausalImpact analysis."""
         try:
-            # Prepare the data for CausalImpact
-            # Ensure datetime index
             if not isinstance(treatment_data.index, pd.DatetimeIndex):
-                try:
-                    treatment_data.index = pd.to_datetime(treatment_data.index)
-                except Exception as e:
-                    return {
-                        "status": "error",
-                        "message": f"Cannot convert treatment_data index to datetime: {str(e)}",
-                    }
-
+                treatment_data.index = pd.to_datetime(treatment_data.index)
             if not isinstance(control_data.index, pd.DatetimeIndex):
-                try:
-                    control_data.index = pd.to_datetime(control_data.index)
-                except Exception as e:
-                    return {
-                        "status": "error",
-                        "message": f"Cannot convert control_data index to datetime: {str(e)}",
-                    }
+                control_data.index = pd.to_datetime(control_data.index)
+        except Exception as e:
+            return None, {
+                "status": "error",
+                "message": f"Cannot convert data index to datetime: {str(e)}",
+            }
 
-            # Combine control and treatment data
-            # The first column should be the treated time series (metric of interest)
-            if metric not in treatment_data.columns:
-                return {
-                    "status": "error",
-                    "message": f"Metric '{metric}' not found in treatment_data columns",
-                }
+        if metric not in treatment_data.columns:
+            return None, {
+                "status": "error",
+                "message": f"Metric '{metric}' not found in treatment_data columns",
+            }
 
-            all_data = pd.concat([treatment_data[[metric]], control_data], axis=1)
+        all_data = pd.concat([treatment_data[[metric]], control_data], axis=1)
+        return all_data, None
 
-            # Convert period dates to datetime if they're strings
-            if isinstance(pre_period[0], str):
-                pre_period_dt = [pd.to_datetime(date) for date in pre_period]
-            else:
-                pre_period_dt = pre_period
+    def _convert_period_dates(
+        self, period: List[Union[str, datetime]]
+    ) -> List[datetime]:
+        """Convert period start/end dates to datetime objects if they are strings."""
+        if isinstance(period[0], str):
+            return [pd.to_datetime(date) for date in period]
+        return period  # type: ignore
 
-            if isinstance(post_period[0], str):
-                post_period_dt = [pd.to_datetime(date) for date in post_period]
-            else:
-                post_period_dt = post_period
-
-            # Set default model arguments
-            default_args = self.config["default_model_args"].copy()
+    def _run_and_extract_causal_impact(
+        self, all_data: pd.DataFrame, pre_period_dt: list, post_period_dt: list, model_args: Optional[Dict]
+    ) -> Tuple[Optional[CausalImpact], Optional[Dict[str, str]]]:
+        """Run CausalImpact and extract results."""
+        try:
+            default_args = self.config.get("default_model_args", {}).copy()
             if model_args:
                 default_args.update(model_args)
 
-            # Run CausalImpact
             ci = CausalImpact(all_data, pre_period_dt, post_period_dt, **default_args)
+            return ci, None
+        except Exception as e:
+            self.logger.error(f"Error running CausalImpact model: {str(e)}")
+            return None, {"status": "error", "message": f"CausalImpact execution failed: {str(e)}"}
 
-            # Get summary and results
-            summary_data = ci.summary_data
-            report = ci.summary(output="report")
-
-            # Extract key metrics from the summary
-            absolute_effect = summary_data.iloc[0]["abs_effect"]
-            relative_effect = summary_data.iloc[0]["rel_effect"]
-            p_value = summary_data.iloc[0]["p"]
-
-            # Get confidence intervals
-            ci_lower = summary_data.iloc[0]["abs_effect_lower"]
-            ci_upper = summary_data.iloc[0]["abs_effect_upper"]
-
-            # Save the plot if output_dir is configured
-            plot_path = None
-            if self.config["output_dir"]:
+    def _save_causal_impact_plot(
+        self, ci: CausalImpact, metric: str
+    ) -> Optional[str]:
+        """Save the CausalImpact plot if output directory is configured."""
+        plot_path = None
+        output_dir = self.config.get("output_dir")
+        if output_dir:
+            try:
+                # Ensure matplotlib is imported locally if needed for plotting
+                import matplotlib.pyplot as plt # type: ignore
                 plot = ci.plot()
                 plot_filename = (
                     f"{metric}_causal_impact_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
                 )
-                plot_path = os.path.join(self.config["output_dir"], plot_filename)
+                plot_path = os.path.join(output_dir, plot_filename)
+                # Ensure directory exists
+                os.makedirs(output_dir, exist_ok=True)
                 plt.savefig(plot_path)
-                plt.close()
+                plt.close(plot) # Close the plot object
+                self.logger.info(f"Saved CausalImpact plot to: {plot_path}")
+            except Exception as e:
+                self.logger.error(f"Failed to save CausalImpact plot: {str(e)}")
+                plot_path = None # Reset path if saving failed
+        return plot_path
 
-            # Create analysis ID and store results
-            analysis_id = f"ci_{metric}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-            analysis_results = {
-                "id": analysis_id,
-                "status": "success",
-                "method": "causal_impact",
-                "pre_period": pre_period,
-                "post_period": post_period,
-                "metric": metric,
-                "estimated_absolute_effect": float(absolute_effect),
-                "estimated_relative_effect": float(relative_effect),
-                "p_value": float(p_value),
-                "ci_lower": float(ci_lower),
-                "ci_upper": float(ci_upper),
-                "report": report,
-                "plot_path": plot_path,
-                "timestamp": datetime.now().isoformat(),
-            }
+    def _format_causal_impact_results(
+        self, ci: CausalImpact, analysis_id: str, pre_period: list, post_period: list, metric: str, plot_path: Optional[str]
+    ) -> Dict[str, Any]:
+        """Format the final results dictionary from CausalImpact output."""
+        summary_data = ci.summary_data
+        report = ci.summary(output="report")
 
-            # Store the analysis
-            self.analyses[analysis_id] = analysis_results
+        # Extract key metrics
+        absolute_effect = summary_data.iloc[0]["abs_effect"]
+        relative_effect = summary_data.iloc[0]["rel_effect"]
+        p_value = summary_data.iloc[0]["p"]
+        ci_lower = summary_data.iloc[0]["abs_effect_lower"]
+        ci_upper = summary_data.iloc[0]["abs_effect_upper"]
 
-            self.logger.info(
-                f"Causal impact analysis completed. Absolute effect: {absolute_effect:.2f}, p-value: {p_value:.4f}"
-            )
+        return {
+            "id": analysis_id,
+            "status": "success",
+            "method": "causal_impact",
+            "pre_period": pre_period,
+            "post_period": post_period,
+            "metric": metric,
+            "estimated_absolute_effect": float(absolute_effect),
+            "estimated_relative_effect": float(relative_effect),
+            "p_value": float(p_value),
+            "ci_lower": float(ci_lower),
+            "ci_upper": float(ci_upper),
+            "report": report,
+            "plot_path": plot_path,
+            "timestamp": datetime.now().isoformat(),
+        }
 
+    def measure_treatment_effect(
+        self,
+        pre_period: List[str],
+        post_period: List[str],
+        control_data: pd.DataFrame,
+        treatment_data: pd.DataFrame,
+        metric: str,
+        model_args: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Measure the causal impact of an intervention using Google's CausalImpact.
+
+        Args:
+            pre_period: [start_date, end_date] for the pre-intervention period.
+            post_period: [start_date, end_date] for the post-intervention period.
+            control_data: DataFrame with time series data for control group(s).
+            treatment_data: DataFrame with time series data for the treated group.
+            metric: The name of the metric column in treatment_data to analyze.
+            model_args: Optional arguments to pass to the CausalImpact model.
+
+        Returns:
+            Dictionary containing the causal impact analysis summary.
+        """
+        start_time = datetime.now()
+        self.logger.info(f"Measuring causal impact for metric '{metric}'...")
+
+        # 1. Validate Inputs
+        validation_error = self._validate_treatment_inputs(pre_period, post_period)
+        if validation_error:
+            return validation_error
+
+        # 2. Prepare Data
+        all_data, data_prep_error = self._prepare_causal_impact_data(
+            treatment_data, control_data, metric
+        )
+        if data_prep_error:
+            return data_prep_error
+        if all_data is None: # Should not happen if error is None, but check anyway
+             return {"status": "error", "message": "Data preparation failed unexpectedly."}
+
+        # 3. Convert Period Dates
+        try:
+            pre_period_dt = self._convert_period_dates(pre_period)
+            post_period_dt = self._convert_period_dates(post_period)
         except Exception as e:
-            self.logger.error(f"Error during causal impact analysis: {str(e)}")
-            analysis_results = {
-                "status": "error",
-                "method": "causal_impact",
-                "message": str(e),
-                "timestamp": datetime.now().isoformat(),
-            }
-            self._track_execution(start_time, success=False)
-            return analysis_results
+             return {"status": "error", "message": f"Invalid period date format: {str(e)}"}
 
-        self._track_execution(start_time, success=True)
+        # 4. Run CausalImpact Model
+        ci, model_run_error = self._run_and_extract_causal_impact(
+            all_data, pre_period_dt, post_period_dt, model_args
+        )
+        if model_run_error:
+            return model_run_error
+        if ci is None: # Should not happen if error is None
+            return {"status": "error", "message": "Model execution failed unexpectedly."}
+
+        # 5. Save Plot (Optional)
+        plot_path = self._save_causal_impact_plot(ci, metric)
+
+        # 6. Format and Store Results
+        analysis_id = f"ci_{metric}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        analysis_results = self._format_causal_impact_results(
+             ci, analysis_id, pre_period, post_period, metric, plot_path
+        )
+
+        # Store the analysis (assuming self.analyses exists)
+        if hasattr(self, 'analyses') and isinstance(self.analyses, dict):
+             self.analyses[analysis_id] = analysis_results
+        else:
+             self.logger.warning("Attribute 'analyses' not found or not a dict. Cannot store results.")
+
+        self.logger.info(
+             f"Causal impact analysis completed. Absolute effect: {analysis_results['estimated_absolute_effect']:.2f}, p-value: {analysis_results['p_value']:.4f}"
+        )
+
+        # 7. Track Execution
+        if hasattr(self, '_track_execution'): # Check if method exists
+            self._track_execution(start_time, success=True)
         return analysis_results
 
     def difference_in_differences(
