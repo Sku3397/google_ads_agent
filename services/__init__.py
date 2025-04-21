@@ -15,10 +15,9 @@ from services.bid_service import BidService
 from services.creative_service import CreativeService
 from services.quality_score_service import QualityScoreService
 from services.reporting_service.reporting_service import ReportingService
-from services.anomaly_detection_service import AnomalyDetectionService
+# from services.anomaly_detection_service import AnomalyDetectionService # Needs sklearn
 from services.scheduler_service.scheduler_service import SchedulerService
-from services.data_persistence_service import DataPersistenceService
-from services.reinforcement_learning_service import ReinforcementLearningService
+# from services.data_persistence_service import DataPersistenceService # Module does not exist
 from services.bandit_service import BanditService
 from services.causal_inference_service import CausalInferenceService
 from services.generative_content_service import GenerativeContentService
@@ -47,10 +46,10 @@ __all__ = [
     "CreativeService",
     "QualityScoreService",
     "ReportingService",
-    "AnomalyDetectionService",
+    # "AnomalyDetectionService", # Needs sklearn
     "SchedulerService",
-    "DataPersistenceService",
-    "ReinforcementLearningService",
+    # "DataPersistenceService", # Module does not exist
+    # "ReinforcementLearningService", # Needs torch
     "BanditService",
     "CausalInferenceService",
     "GenerativeContentService",
