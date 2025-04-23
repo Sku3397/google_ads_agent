@@ -20,7 +20,10 @@ from stable_baselines3.common.callbacks import EvalCallback, CallbackList, Check
 from stable_baselines3.common.evaluation import evaluate_policy
 from sb3_contrib import A2C as A3C
 
-from services.base_service import BaseService
+from ads_api import GoogleAdsAPI
+from optimizer import AdsOptimizer
+from config import load_config
+from ..base_service import BaseService
 from .ads_environment import GoogleAdsEnv
 from .policy_models import BiddingPolicy, KeywordPolicy
 

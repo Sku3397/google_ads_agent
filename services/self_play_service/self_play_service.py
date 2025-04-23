@@ -17,7 +17,10 @@ import pickle
 import uuid
 from pathlib import Path
 
-from services.base_service import BaseService
+from ads_api import GoogleAdsAPI
+from optimizer import AdsOptimizer
+from config import load_config
+from ..base_service import BaseService
 from services.reinforcement_learning_service import ReinforcementLearningService, AdsEnvironment
 
 logger = logging.getLogger(__name__)

@@ -9,6 +9,8 @@ import json
 import logging
 import os
 import time
+import requests # type: ignore
+from bs4 import BeautifulSoup # type: ignore
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple, Union
@@ -22,7 +24,10 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
-from services.base_service import BaseService
+from ads_api import GoogleAdsAPI
+from optimizer import AdsOptimizer
+from config import load_config
+from ..base_service import BaseService
 
 
 @dataclass

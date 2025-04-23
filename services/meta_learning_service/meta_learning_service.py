@@ -14,7 +14,14 @@ from typing import Dict, List, Any, Optional, Tuple
 from datetime import datetime, timedelta
 import pickle
 
-from services.base_service import BaseService
+# Meta-learning libraries (examples)
+# import learn2learn as l2l # type: ignore
+# import higher # type: ignore
+
+from ads_api import GoogleAdsAPI
+from optimizer import AdsOptimizer
+from config import load_config
+from ..base_service import BaseService
 
 
 class MetaLearningService(BaseService):

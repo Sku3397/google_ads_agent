@@ -5,7 +5,9 @@ from unittest.mock import Mock, patch
 from datetime import datetime, timedelta
 import pandas as pd
 import numpy as np
-from services.simulation_service import SimulationService
+
+# Correct import path relative to project root
+from services.simulation_service.simulation_service import SimulationService
 
 
 class TestSimulationService(unittest.TestCase):

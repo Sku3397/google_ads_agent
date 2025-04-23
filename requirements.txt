@@ -24,7 +24,7 @@ wandb>=0.12.0
 
 # Core ML / Scientific Computing
 scikit-learn>=1.3.0
-scipy>=1.10.1
+scipy>=1.10.0
 statsmodels>=0.14.0
 torch>=1.13.1
 # tensorflow>=2.12.0  # Commented out due to installation issues on Python 3.13/Windows
@@ -132,4 +132,7 @@ pandas-stubs>=2.2.3
 types-pytz>=2025.2
 
 # Added pandas type stubs
-# Added dependency for pandas-stubs 
+# Added dependency for pandas-stubs
+
+# Type Stubs
+scikit-learn-stubs 

@@ -20,7 +20,10 @@ from statsmodels.tsa.statespace.sarimax import SARIMAX
 from statsmodels.tsa.seasonal import seasonal_decompose
 import pmdarima as pm
 
-from services.base_service import BaseService
+from ads_api import GoogleAdsAPI
+from optimizer import AdsOptimizer
+from config import load_config
+from ..base_service import BaseService
 
 
 @dataclass

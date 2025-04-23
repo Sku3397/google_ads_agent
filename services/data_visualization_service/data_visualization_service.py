@@ -724,7 +724,12 @@ class DataVisualizationService(BaseService):
             return {"status": "error", "message": f"Unknown action: {action}"}
 
     def create_trend_chart(
-        self, data: pd.DataFrame, date_col: str, value_cols: List[str], title: str, filename: Optional[str] = None
+        self,
+        data: pd.DataFrame,
+        date_col: str,
+        value_cols: List[str],
+        title: str,
+        filename: Optional[str] = None,
     ) -> str:
         """
         Create a trend chart showing performance over time.

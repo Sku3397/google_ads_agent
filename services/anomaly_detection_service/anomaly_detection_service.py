@@ -17,7 +17,10 @@ from sklearn.preprocessing import StandardScaler
 from scipy import stats
 import random
 
-from services.base_service import BaseService
+from ads_api import GoogleAdsAPI
+from optimizer import AdsOptimizer
+from config import load_config
+from ..base_service import BaseService
 
 
 class AnomalyDetectionService(BaseService):

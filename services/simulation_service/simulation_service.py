@@ -11,16 +11,35 @@ logger = logging.getLogger(__name__)
 class SimulationService(BaseService):
     """Service for simulating changes to Google Ads campaigns and predicting their impact."""
 
-    def __init__(self, client: GoogleAdsClient, customer_id: str):
+    def __init__(
+        self,
+        ads_api: Optional[Any] = None,
+        optimizer: Optional[Any] = None,
+        config: Optional[Dict[str, Any]] = None,
+        logger: Optional[logging.Logger] = None,
+    ) -> None:
         """
         Initialize the simulation service.
 
         Args:
-            client: The Google Ads API client
-            customer_id: The Google Ads customer ID
+            ads_api: Google Ads API client instance
+            optimizer: AI optimizer instance
+            config: Configuration dictionary
+            logger: Logger instance
         """
-        super().__init__(client, customer_id)
-        self.simulation_service = self.client.get_service("AdGroupCriterionSimulationService")
+        super().__init__(ads_api=ads_api, optimizer=optimizer, config=config, logger=logger)
+        self.logger.info("SimulationService initialized.")
+        if self.ads_api:
+            self.client = self.ads_api.client
+            self.customer_id = self.ads_api.customer_id
+            self.simulation_service_client = self.client.get_service(
+                "AdGroupCriterionSimulationService"
+            )
+        else:
+            self.logger.error("Ads API client not provided to SimulationService.")
+            self.client = None
+            self.customer_id = None
+            self.simulation_service_client = None
 
     def simulate_bid_changes(
         self, keyword_ids: List[str], bid_modifiers: List[float]

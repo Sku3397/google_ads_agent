@@ -11,7 +11,10 @@ import numpy as np
 import pandas as pd
 from datetime import datetime, timedelta
 
-from services.base_service import BaseService
+from ads_api import GoogleAdsAPI
+from optimizer import AdsOptimizer
+from config import load_config
+from ..base_service import BaseService
 
 
 class PersonalizationService(BaseService):
@@ -689,7 +692,14 @@ class PersonalizationService(BaseService):
         self._track_execution(start_time, success)
         return success
 
-    def create_segment_visualization(self, data: pd.DataFrame, feature_cols: List[str], segment_col: str, title: str, filename: Optional[str] = None) -> str:
+    def create_segment_visualization(
+        self,
+        data: pd.DataFrame,
+        feature_cols: List[str],
+        segment_col: str,
+        title: str,
+        filename: Optional[str] = None,
+    ) -> str:
         """
         Create a visualization for user segments based on clustering results.
 

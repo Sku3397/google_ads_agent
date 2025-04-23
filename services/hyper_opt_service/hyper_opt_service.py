@@ -65,7 +65,9 @@ class HyperOptService(BaseService):
         else:
             self.logger.warning("HyperOptService run method called without service_name or metric.")
 
-    def plot_optimization_history(self, service_name: str, metric: str, history: List[Dict[str, float]]) -> str:
+    def plot_optimization_history(
+        self, service_name: str, metric: str, history: List[Dict[str, float]]
+    ) -> str:
         """
         Plot the optimization history for a given service and metric.
 
@@ -78,7 +80,11 @@ class HyperOptService(BaseService):
             Path to the saved plot.
         """
         plt.figure(figsize=(10, 6))
-        plt.plot([item['iteration'] for item in history], [item['metric_value'] for item in history], label=f"{service_name} - {metric}")
+        plt.plot(
+            [item["iteration"] for item in history],
+            [item["metric_value"] for item in history],
+            label=f"{service_name} - {metric}",
+        )
         plt.title("Optimization History")
         plt.xlabel("Iteration")
         plt.ylabel("Metric Value")
