@@ -67,7 +67,7 @@ html5lib>=1.1
 playwright>=1.35.0
 
 # Causal Inference
-causalimpact>=1.2.1
+causalimpact>=0.2.6
 econml>=0.14.1
 
 # Portfolio Optimization / OR-Tools
@@ -135,4 +135,5 @@ types-pytz>=2025.2
 # Added dependency for pandas-stubs
 
 # Type Stubs
+pandas-stubs
 scikit-learn-stubs 

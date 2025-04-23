@@ -8,7 +8,7 @@ optimization, and monitoring.
 
 # Allow services to be imported directly from the package
 from typing import Any, Dict, List, Optional
-from google.ads.googleads.client import GoogleAdsClient # type: ignore
+from google.ads.googleads.client import GoogleAdsClient  # type: ignore
 import logging
 
 # Common service utilities and definitions

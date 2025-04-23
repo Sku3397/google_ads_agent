@@ -866,3 +866,8 @@ results = creative_service.monitor_creative_test(test)
 ## License
 
 MIT License - see LICENSE file for details
+
+### Causal Inference Service
+- Status: Integrated
+- Functionality: Analyzes the impact of campaign changes using causal inference methods.
+- Details: Basic implementation exists, wired into agent and scheduler. Quality checks mostly pass, tests exist.
