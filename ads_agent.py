@@ -18,7 +18,7 @@ import pandas as pd
 
 # Core components
 from config import load_config
-from ads_api import GoogleAdsAPI
+from ads_api import GoogleAdsAPI  # type: ignore[import-untyped] # TODO: Fix mypy module resolution
 from optimizer import AdsOptimizer
 
 # Services
